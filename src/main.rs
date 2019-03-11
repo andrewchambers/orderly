@@ -1,34 +1,19 @@
+mod specs;
 use std::time::Duration;
 
 enum SupervisorStrategy {
-    OneForOne,
+    OneForAll,
 }
 
-struct ProcSpecBuilder {
-    name: Option<String>,
-    run: Option<String>,
-    check: Option<String>,
-    log: Option<String>,
-    post: Option<String>,
-    start_grace_period: Option<Duration>,
-}
-
-struct ProcSpec {
-    name: Option<String>,
-    run: Option<String>,
-    check: Option<String>,
-    log: Option<String>,
-    post: Option<String>,
-    start_grace_period: Duration,
-}
-
+/*
 struct Builder {
     strategy: Option<SupervisorStrategy>,
     status_file: Option<String>,
     restart_duration: Duration,
     max_restarts: usize,
-    procs: Vec<ProcSpec>,
+    procs: Vec<ProcSpecBuilder>,
 }
+
 
 impl Builder {
     fn new() -> Self {
@@ -52,16 +37,19 @@ impl Builder {
     */
 }
 
+*/
+
 fn die(s: &str) -> ! {
     eprintln!("{}", s);
     std::process::exit(1);
 }
 
 fn main() {
-    let mut builder = Builder::new();
-
     let args: Vec<String> = std::env::args().collect();
     let mut arg_idx = 1;
+
+    let supervisor_spec_builder = specs::SupervisorSpecBuilder::new();
+    let proc_spec_builder = specs::ProcSpecBuilder::new();
 
     while arg_idx < args.len() {
         match args.get(arg_idx).unwrap().as_ref() {
@@ -71,7 +59,7 @@ fn main() {
                     .unwrap_or_else(|| die("-strategy expected an argument."))
                     .as_ref()
                 {
-                    "one-for-one" => {}
+                    "one-for-all" => {}
                     unknown => die(format!("{} is not a valid -strategy.", unknown).as_ref()),
                 }
                 arg_idx += 2;
