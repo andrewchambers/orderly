@@ -1,9 +1,11 @@
 use std::time::Duration;
 
+#[derive(Debug)]
 pub enum SpecError {
     MissingField(&'static str),
 }
 
+#[derive(Debug)]
 pub struct ProcSpecBuilder {
     name: Option<String>,
     run: Option<String>,
@@ -92,6 +94,7 @@ impl ProcSpecBuilder {
     }
 }
 
+#[derive(Debug)]
 pub struct ProcSpec {
     name: String,
     run: String,
@@ -101,13 +104,24 @@ pub struct ProcSpec {
     cleanup: String,
 }
 
-enum SupervisorStrategy {
+#[derive(Debug)]
+pub enum SupervisorStrategy {
     OneForAll,
 }
 
+#[derive(Debug)]
 pub struct SupervisorSpecBuilder {
     strategy: Option<SupervisorStrategy>,
     status_file: Option<String>,
+    restart_duration: Duration,
+    max_restarts: usize,
+    procs: Vec<ProcSpec>,
+}
+
+#[derive(Debug)]
+pub struct SupervisorSpec {
+    strategy: SupervisorStrategy,
+    status_file: String,
     restart_duration: Duration,
     max_restarts: usize,
     procs: Vec<ProcSpec>,
@@ -142,5 +156,31 @@ impl SupervisorSpecBuilder {
 
     pub fn add_proc_spec(&mut self, spec: ProcSpec) {
         self.procs.push(spec);
+    }
+
+    pub fn build(self) -> Result<SupervisorSpec, SpecError> {
+        let mut spec = SupervisorSpec {
+            strategy: SupervisorStrategy::OneForAll,
+            restart_duration: Duration::from_secs(0),
+            max_restarts: 0,
+            status_file: "".to_string(),
+            procs: vec![],
+        };
+
+        match self.strategy {
+            Some(strategy) => spec.strategy = strategy,
+            None => return Err(SpecError::MissingField("strategy")),
+        }
+
+        match &self.status_file {
+            Some(status_file) => spec.status_file = status_file.clone(),
+            None => return Err(SpecError::MissingField("status-file")),
+        }
+
+        spec.restart_duration = self.restart_duration;
+        spec.max_restarts = self.max_restarts;
+        spec.procs = self.procs;
+
+        Ok(spec)
     }
 }
