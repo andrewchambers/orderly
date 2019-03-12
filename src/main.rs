@@ -6,6 +6,206 @@ fn die(s: &str) -> ! {
     std::process::exit(1);
 }
 
+struct OneForAllSupervisor {
+    spec: specs::SupervisorSpec,
+    procs: Vec<Option<std::process::Child>>,
+}
+
+enum StopMethod {
+    Gentle,
+    Brutal,
+}
+
+#[derive(Debug)]
+enum SupervisorError {
+    IOError(std::io::Error),
+    Interrupted,
+    RestartLimitReached,
+    ProcFailed,
+}
+
+#[derive(Debug)]
+enum ProcStatus {
+    Ok,
+    Starting,
+    Failed,
+}
+
+impl From<std::io::Error> for SupervisorError {
+    fn from(e: std::io::Error) -> Self {
+        SupervisorError::IOError(e)
+    }
+}
+
+impl OneForAllSupervisor {
+    fn sleep(&mut self, d: Duration) -> Result<(), SupervisorError> {
+        std::thread::sleep(d);
+        Ok(())
+    }
+
+    fn kill_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
+        let p = &mut self.procs[idx];
+
+        match p {
+            Some(c) => {
+                match c.kill() {
+                    Ok(()) => (),
+                    Err(e) => match e.kind() {
+                        std::io::ErrorKind::InvalidInput => (),
+                        _ => Err(e)?,
+                    },
+                }
+                c.wait()?;
+                *p = None;
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
+
+    fn check_proc(&mut self, idx: usize) -> Result<ProcStatus, SupervisorError> {
+        let p = &mut self.procs[idx];
+
+        match p {
+            Some(c) => match c.try_wait()? {
+                None => {
+                    let s = self.spec.procs.get(idx).unwrap();
+                    let mut command = std::process::Command::new(s.check.clone());
+                    let mut c = command.spawn()?;
+                    let rc = c.wait()?.code().unwrap_or(1);
+
+                    match rc {
+                        0 => Ok(ProcStatus::Ok),
+                        2 => Ok(ProcStatus::Starting),
+                        _ => Err(SupervisorError::ProcFailed),
+                    }
+                }
+                Some(_) => {
+                    *p = None;
+                    Ok(ProcStatus::Failed)
+                }
+            },
+            None => Ok(ProcStatus::Failed),
+        }
+    }
+
+    fn clean_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
+        {
+            let p = &self.procs[idx];
+
+            match p {
+                Some(_) => panic!("bug, clean without kill."),
+                None => (),
+            }
+        }
+
+        let s = self.spec.procs.get(idx).unwrap();
+        let mut command = std::process::Command::new(s.cleanup.clone());
+        let mut c = command.spawn()?;
+        let rc = c.wait()?;
+        if rc.success() {
+            Ok(())
+        } else {
+            Err(SupervisorError::ProcFailed)
+        }
+    }
+
+    fn start_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
+        {
+            let p = &self.procs[idx];
+
+            match p {
+                Some(_) => self.kill_proc(idx)?,
+                None => (),
+            }
+        }
+
+        let s = self.spec.procs.get(idx).unwrap();
+
+        let mut command = std::process::Command::new(s.run.clone());
+        let c = command.spawn()?;
+
+        {
+            self.procs[idx] = Some(c);
+        }
+
+        loop {
+            match self.check_proc(idx)? {
+                ProcStatus::Ok => {
+                    let s = self.spec.procs.get(idx).unwrap();
+                    let mut command = std::process::Command::new(s.post.clone());
+                    let mut c = command.spawn()?;
+                    let rc = c.wait()?.code().unwrap_or(1);
+                    if rc != 0 {
+                        return Err(SupervisorError::ProcFailed);
+                    }
+                    return Ok(());
+                }
+                ProcStatus::Starting => self.sleep(Duration::from_millis(100))?,
+                ProcStatus::Failed => return Err(SupervisorError::ProcFailed),
+            };
+        }
+    }
+
+    fn kill_all_procs(&mut self) -> Result<(), SupervisorError> {
+        for i in (0..self.procs.len()).rev() {
+            self.kill_proc(i)?;
+        }
+        Ok(())
+    }
+
+    fn restart_all_procs(&mut self) -> Result<(), SupervisorError> {
+        // TODO failure threshold.
+
+        self.kill_all_procs()?;
+
+        for i in (0..self.procs.len()).rev() {
+            self.clean_proc(i)?;
+        }
+
+        for i in (0..self.procs.len()).rev() {
+            self.start_proc(i)?;
+        }
+
+        Ok(())
+    }
+
+    fn check_all_procs(&mut self) -> Result<(), SupervisorError> {
+        Ok(())
+    }
+
+    fn run_procs(&mut self) -> SupervisorError {
+        match self.restart_all_procs() {
+            Ok(()) => (),
+            Err(e) => return e,
+        }
+
+        loop {
+            match self.check_all_procs() {
+                Ok(()) => match self.sleep(Duration::from_secs(10)) {
+                    Ok(()) => continue,
+                    Err(e) => return e,
+                },
+                Err(e) => return e,
+            }
+        }
+    }
+
+    fn supervise_forever(&mut self) {
+        loop {
+            match self.run_procs() {
+                SupervisorError::IOError(_) | SupervisorError::ProcFailed => continue,
+                SupervisorError::Interrupted | SupervisorError::RestartLimitReached => {
+                    if let Err(e) = self.kill_all_procs() {
+                        eprintln!("Unable kill child procs {:?}", e)
+                    };
+                    std::process::exit(1)
+                }
+            }
+        }
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let mut arg_idx = 1;
@@ -14,7 +214,7 @@ fn main() {
     let mut proc_spec_builder = specs::ProcSpecBuilder::new();
 
     while arg_idx < args.len() {
-        match args.get(arg_idx).unwrap().as_ref() {
+        match args[arg_idx].as_ref() {
             "-strategy" => {
                 match args
                     .get(arg_idx + 1)
@@ -89,13 +289,6 @@ fn main() {
                     .get(arg_idx + 1)
                     .unwrap_or_else(|| die("-check expected an argument."));
                 proc_spec_builder.set_check(check.clone());
-                arg_idx += 2;
-            }
-            "-log" => {
-                let log = args
-                    .get(arg_idx + 1)
-                    .unwrap_or_else(|| die("-log expected an argument."));
-                proc_spec_builder.set_log(log.clone());
                 arg_idx += 2;
             }
             "-post" => {

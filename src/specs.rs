@@ -10,7 +10,6 @@ pub struct ProcSpecBuilder {
     name: Option<String>,
     run: Option<String>,
     check: Option<String>,
-    log: Option<String>,
     post: Option<String>,
     cleanup: Option<String>,
 }
@@ -21,7 +20,6 @@ impl ProcSpecBuilder {
             name: None,
             run: None,
             check: None,
-            log: None,
             post: None,
             cleanup: None,
         }
@@ -39,10 +37,6 @@ impl ProcSpecBuilder {
         self.check = Some(check)
     }
 
-    pub fn set_log(&mut self, log: String) {
-        self.log = Some(log)
-    }
-
     pub fn set_post(&mut self, post: String) {
         self.post = Some(post)
     }
@@ -56,7 +50,6 @@ impl ProcSpecBuilder {
             name: "".to_string(),
             run: "".to_string(),
             check: "".to_string(),
-            log: "".to_string(),
             post: "".to_string(),
             cleanup: "".to_string(),
         };
@@ -75,11 +68,6 @@ impl ProcSpecBuilder {
             None => return Err(SpecError::MissingField("check")),
         }
 
-        match &self.log {
-            Some(log) => spec.log = log.clone(),
-            None => return Err(SpecError::MissingField("log")),
-        }
-
         match &self.post {
             Some(post) => spec.post = post.clone(),
             None => return Err(SpecError::MissingField("post")),
@@ -96,12 +84,11 @@ impl ProcSpecBuilder {
 
 #[derive(Debug)]
 pub struct ProcSpec {
-    name: String,
-    run: String,
-    check: String,
-    log: String,
-    post: String,
-    cleanup: String,
+    pub name: String,
+    pub run: String,
+    pub check: String,
+    pub post: String,
+    pub cleanup: String,
 }
 
 #[derive(Debug)]
@@ -120,11 +107,11 @@ pub struct SupervisorSpecBuilder {
 
 #[derive(Debug)]
 pub struct SupervisorSpec {
-    strategy: SupervisorStrategy,
-    status_file: String,
-    restart_duration: Duration,
-    max_restarts: usize,
-    procs: Vec<ProcSpec>,
+    pub strategy: SupervisorStrategy,
+    pub status_file: String,
+    pub restart_duration: Duration,
+    pub max_restarts: usize,
+    pub procs: Vec<ProcSpec>,
 }
 
 impl SupervisorSpecBuilder {
