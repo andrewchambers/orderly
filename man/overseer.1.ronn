@@ -28,30 +28,16 @@ restarted.
 
 ## SUPERVISOR SPEC FLAGS
 
-
-  * `-strategy STRAT`:
-    Use the given restart strategy.
-
-    Strategy 'one-for-all' means if a process 
-    dies or fails a health check, kill running processes in reverse order, then
-    run cleanup scripts in reverse order and finally start them in order if within
-    the restart intensity threshold, otherwise aborts.
-
-    Strategy 'one-for-one' means restart any given process if it dies and the 
-    overseer is within it's restart intensity threshold.
-
-
-  * `-restart-duration SECONDS`:
+  * `-restarts-per-second NUM (default=0.1)`:
     TODO
 
-  * `-max-restarts NUM`:
+  * `-max-restarts NUM (default=5)` :
     TODO
 
   * `-status-file PATH`:
     
-    A json file atomically updated with the current status of overseer and it's
-    children. This file can be used in the health check script of a supervising
-    overseer instance to determine when the process set has started.
+    If specified, a file atomically updated with the current status of overseer it will contain either
+    "STARTING", "RUNNING" or "EXITED" .
 
 ## PROCESS SPEC FLAGS
 
@@ -60,23 +46,19 @@ TODO
 ## EXAMPLES
 
     $ overseer \
-      -strategy one-for all \
-      -restart-duration 60 \
+      -restarts-per-second 0.1 \
       -max-restarts 5 \
-      -status-file ./app-status.json \
       -- \
       -name redis \
       -run ./start-redis \
       -post-start ./post-start-redis \
       -check ./check-redis \
-      -log ./log-redis \
       -cleanup ./cleanup-redis \
       -- \
       -name webapp \
       -run ./start-webapp \
       -post-start ./post-start-webapp
       -check ./check-webapp \
-      -log ./log-webapp \
       -cleanup ./cleanup-webapp 
 
 ## COPYRIGHT

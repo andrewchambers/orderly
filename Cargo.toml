@@ -4,3 +4,10 @@ version = "0.1.0"
 authors = ["Andrew Chambers <ac@acha.ninja>"]
 edition = "2018"
 
+[dependencies]
+libc = "0.2"
+nix = "0.13"
+crossbeam-channel = "0.3"
+signal-hook = { version = "0.1", default-features = false }
+log = "0.4"
+simple_logger = "1.0.1"
