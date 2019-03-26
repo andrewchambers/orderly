@@ -6,7 +6,7 @@ fn die(s: &str) -> ! {
     std::process::exit(1);
 }
 
-struct OneForAllSupervisor {
+struct Supervisor {
     spec: specs::SupervisorSpec,
     procs: Vec<Option<std::process::Child>>,
 }
@@ -37,7 +37,19 @@ impl From<std::io::Error> for SupervisorError {
     }
 }
 
-impl OneForAllSupervisor {
+impl Supervisor {
+    fn new(spec: specs::SupervisorSpec) -> Self {
+        let mut procs = vec![];
+        for _i in spec.procs.iter() {
+            procs.push(None);
+        }
+
+        Supervisor {
+            spec: spec,
+            procs: procs,
+        }
+    }
+
     fn sleep(&mut self, d: Duration) -> Result<(), SupervisorError> {
         std::thread::sleep(d);
         Ok(())
@@ -65,6 +77,8 @@ impl OneForAllSupervisor {
 
     fn check_proc(&mut self, idx: usize) -> Result<ProcStatus, SupervisorError> {
         let p = &mut self.procs[idx];
+
+        dbg!(idx);
 
         match p {
             Some(c) => match c.try_wait()? {
@@ -155,8 +169,6 @@ impl OneForAllSupervisor {
     }
 
     fn restart_all_procs(&mut self) -> Result<(), SupervisorError> {
-        // TODO failure threshold.
-
         self.kill_all_procs()?;
 
         for i in (0..self.procs.len()).rev() {
@@ -171,10 +183,14 @@ impl OneForAllSupervisor {
     }
 
     fn check_all_procs(&mut self) -> Result<(), SupervisorError> {
+        for i in 0..self.procs.len() {
+            self.check_proc(i)?;
+        }
+
         Ok(())
     }
 
-    fn run_procs(&mut self) -> SupervisorError {
+    fn one_for_all_run_procs(&mut self) -> SupervisorError {
         match self.restart_all_procs() {
             Ok(()) => (),
             Err(e) => return e,
@@ -191,17 +207,25 @@ impl OneForAllSupervisor {
         }
     }
 
-    fn supervise_forever(&mut self) {
+    fn one_for_all_supervise_forever(&mut self) {
         loop {
-            match self.run_procs() {
-                SupervisorError::IOError(_) | SupervisorError::ProcFailed => continue,
+            match self.one_for_all_run_procs() {
+                e @ SupervisorError::IOError(_) | e @ SupervisorError::ProcFailed => {
+                    eprintln!("supervisor encountered an error: {:?}", e);
+                }
                 SupervisorError::Interrupted | SupervisorError::RestartLimitReached => {
                     if let Err(e) = self.kill_all_procs() {
-                        eprintln!("Unable kill child procs {:?}", e)
+                        eprintln!("Unable kill child procs: {:?}", e)
                     };
                     std::process::exit(1)
                 }
             }
+        }
+    }
+
+    fn supervise_forever(&mut self) {
+        match self.spec.strategy {
+            specs::SupervisorStrategy::OneForAll => self.one_for_all_supervise_forever(),
         }
     }
 }
@@ -336,5 +360,6 @@ fn main() {
         }
     };
 
-    dbg!(spec);
+    let mut supervisor = Supervisor::new(spec);
+    supervisor.supervise_forever();
 }
