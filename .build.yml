@@ -1,0 +1,10 @@
+image: nixos/latest
+repositories:
+  nixpkgs: https://nixos.org/channels/nixpkgs-unstable
+sources:
+  - https://git.sr.ht/~ach/orderly
+tasks:
+  - test: |
+      echo $NIX_PATH
+      cd orderly
+      ./do test

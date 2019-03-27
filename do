@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p ronn 
+#! nix-shell --pure -i bash -p ronn cargo
 
 set -eux
 

@@ -1,0 +1,17 @@
+#! /usr/bin/env bash
+
+set -eu
+
+case $ORDERLY_ACTION in
+  RUN)
+    echo "sv $ORDERLY_ACTION"
+    exec sleep 9999
+  ;;
+  WAIT_STARTED)
+    sleep 99999
+  ;;
+  *)
+    echo "unknown action: $ORDERLY_ACTION"
+    exit 1
+  ;;
+esac

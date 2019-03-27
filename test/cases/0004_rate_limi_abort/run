@@ -1,0 +1,18 @@
+#! /usr/bin/env bash
+
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd "$dir"
+
+set -eux
+
+if overseer -max-restarts 5 -restarts-per-second 0.2 -- \
+  -name sv -wait-started-timeout 1.1 -run ./sv -wait-started ./sv > test.out 
+then
+  echo "expected failure."
+  exit 1
+fi
+
+diff -u <(grep "^sv" test.out) test.expected
+
+
