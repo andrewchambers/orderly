@@ -404,19 +404,7 @@ impl Supervisor {
 
     let env = self.get_proc_script_env("RUN", idx);
     let s = self.spec.procs.get(idx).unwrap();
-    let mut cmd = std::process::Command::new(&s.run);
-
-    for v in env {
-      cmd.env(v.0, v.1);
-    }
-
-    cmd.before_exec(|| {
-      match nix::unistd::setpgid(nix::unistd::Pid::from_raw(0), nix::unistd::Pid::from_raw(0)) {
-        Ok(_pid) => Ok(()),
-        Err(_err) => Err(std::io::Error::from(std::io::ErrorKind::Other)),
-      }
-    });
-    let c = cmd.spawn()?;
+    let c = Supervisor::spawn_child(&s.run, &env)?;
     self.procs[idx] = Some(c);
 
     {
