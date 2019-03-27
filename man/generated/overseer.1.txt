@@ -1,28 +1,28 @@
-OVERSEER(1)                                                                           OVERSEER(1)
+ORDERLY(1)                                                                             ORDERLY(1)
 
 NAME
-       overseer - run and supervise processes.
+       orderly - run and supervise processes.
 
 SYNOPSIS
-       overseer supervisorspec... -- <progspec...> [-- ...]
+       orderly supervisorspec... -- <progspec...> [-- ...]
 
 DESCRIPTION
-       overseer Provides ordered starting, supervision and stopping of a collection of processes.
-       overseer starts a list of processes in order, then  monitors  them  with  provided  health
-       check  scripts.  On failure, processes are stopped and restarted in a well specified order
-       following the specified restart strategy. On unrecoverable errors, overseer itself  aborts
-       execution.
+       orderly  Provides ordered starting, supervision and stopping of a collection of processes.
+       orderly starts a list of processes in order, then monitors them with provided health check
+       scripts. On failure, processes are stopped and restarted in a well specified order follow‐
+       ing the specified restart strategy. On unrecoverable errors, orderly itself aborts  execu‐
+       tion.
 
-       Arrangement  of overseer invocations in a tree hierarchy allows the creation of fault tol‐
-       erant process supervision trees.
+       Arrangement of orderly invocations in a tree hierarchy allows the creation of fault toler‐
+       ant process supervision trees.
 
 SIGNALS
-       On SIGINT overseer sents SIGINT to all processes in reverse order, and waits for  them  to
+       On SIGINT orderly sents SIGINT to all processes in reverse order, and waits  for  them  to
        exit.  If  the process spec has a shutdown grace period, processes are killed with SIGKILL
        after the shutdown grace period has elapsed.
 
-       On SIGTERM overseer kills all processes in reverse order, then exits as soon as  possible.
-       Cleanup scripts will be run in reverse order next time overseer is restarted.
+       On SIGTERM orderly kills all processes in reverse order, then exits as soon  as  possible.
+       Cleanup scripts will be run in reverse order next time orderly is restarted.
 
 SUPERVISOR SPEC FLAGS
        -restarts-per-second NUM (default=0.1)
@@ -33,14 +33,14 @@ SUPERVISOR SPEC FLAGS
 
        -status-file PATH:
 
-              If specified, a file atomically updated with the current status of overseer it will
+              If  specified, a file atomically updated with the current status of orderly it will
               contain either "STARTING", "RUNNING" or "EXITED" .
 
 PROCESS SPEC FLAGS
        TODO
 
 EXAMPLES
-       $ overseer \
+       $ orderly \
          -restarts-per-second 0.1 \
          -max-restarts 5 \
          -- \
@@ -57,6 +57,6 @@ EXAMPLES
          -cleanup ./cleanup-webapp
 
 COPYRIGHT
-       overseer is Copyright (C) 2019 Andrew Chambers https://acha.ninja/
+       orderly is Copyright (C) 2019 Andrew Chambers https://acha.ninja/
 
-                                            March 2019                                OVERSEER(1)
+                                            March 2019                                 ORDERLY(1)

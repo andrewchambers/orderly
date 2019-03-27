@@ -14,10 +14,10 @@ case "$target" in
   ;;
   doc)
     mkdir -p ./man/generated/
-    cp ./man/overseer.1.ronn ./man/generated/
-    ronn ./man/generated/overseer.1.ronn
-    rm ./man/generated/overseer.1.ronn
-    MANWIDTH=100 man ./man/generated/overseer.1 | col -bx > ./man/generated/overseer.1.txt
+    cp ./man/orderly.1.ronn ./man/generated/
+    ronn ./man/generated/orderly.1.ronn
+    rm ./man/generated/orderly.1.ronn
+    MANWIDTH=100 man ./man/generated/orderly.1 | col -bx > ./man/generated/orderly.1.txt
   ;;
   test)
     cargo build

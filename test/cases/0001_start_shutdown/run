@@ -6,7 +6,7 @@ cd "$dir"
 
 set -eux
 
-overseer -check-delay 60 -- \
+orderly -check-delay 60 -- \
   -name sv1 -all-commands ./sv \
    -- \
   -name sv2 -all-commands ./sv \

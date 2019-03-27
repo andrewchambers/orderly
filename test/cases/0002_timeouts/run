@@ -7,7 +7,7 @@ cd "$dir"
 set -eux
 
 export TIMEOUT_ACTION="WAIT_STARTED"
-if overseer -check-delay 60 -max-restarts 1 -restarts-per-second 0 -- \
+if orderly -check-delay 60 -max-restarts 1 -restarts-per-second 0 -- \
   -name sv -all-commands ./sv -wait-started-timeout 2 > test1.out
 then
   echo "expected failure"
@@ -18,7 +18,7 @@ diff -u <(grep "^sv" test1.out) test1.expected
 
 
 export TIMEOUT_ACTION="CHECK"
-if overseer -check-delay 60 -max-restarts 1 -restarts-per-second 0 -- \
+if orderly -check-delay 60 -max-restarts 1 -restarts-per-second 0 -- \
   -name sv -all-commands ./sv -check-timeout 2  > test2.out
 then
   echo "expected failure"
@@ -29,7 +29,7 @@ diff -u <(grep "^sv" test2.out) test2.expected
 
 
 export TIMEOUT_ACTION="CLEANUP"
-if overseer -check-delay 60 -max-restarts 1 -restarts-per-second 0 -- \
+if orderly -check-delay 60 -max-restarts 1 -restarts-per-second 0 -- \
   -name sv -all-commands ./sv -cleanup-timeout 2  > test3.out
 then
   echo "expected failure"
@@ -40,7 +40,7 @@ diff -u <(grep "^sv" test3.out) test3.expected
 
 
 export TIMEOUT_ACTION="SHUTDOWN"
-overseer -check-delay 60 -max-restarts 1 -restarts-per-second 0 -- \
+orderly -check-delay 60 -max-restarts 1 -restarts-per-second 0 -- \
   -name sv -all-commands ./sv -shutdown-timeout 2 > test4.out &
 
 pid="$!"
@@ -52,7 +52,7 @@ diff -u <(grep "^sv" test4.out) test4.expected
 
 export SHUTDOWN_NOOP="yes"
 export TIMEOUT_ACTION="SHUTDOWN"
-overseer -check-delay 60 -max-restarts 1 -restarts-per-second 0 -- \
+orderly -check-delay 60 -max-restarts 1 -restarts-per-second 0 -- \
   -name sv -all-commands ./sv -shutdown-timeout 2 > test5.out &
 
 pid="$!"

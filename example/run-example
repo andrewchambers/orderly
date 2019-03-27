@@ -4,7 +4,7 @@ set -eux
 
 export PATH="$PATH:./target/debug/"
 
-overseer \
+orderly \
   -status-file "./orderly.status" \
   -restarts-per-second 0.01 \
   -max-restarts 5 \

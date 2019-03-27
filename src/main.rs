@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 // Rename to orderly.
 
 fn usage() {
-  println!(include_str!("../man/generated/overseer.1.txt"));
+  println!(include_str!("../man/generated/orderly.1.txt"));
   std::process::exit(1);
 }
 

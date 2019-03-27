@@ -4,7 +4,7 @@ set -eux
 
 case $ORDERLY_ACTION in
   RUN)
-    exec overseer -check-delay 60 -status-file nested.status \
+    exec orderly -check-delay 60 -status-file nested.status \
       -- -name sv3 -all-commands ./sv \
       -- -name sv4 -all-commands ./sv 
   ;;
