@@ -3,18 +3,14 @@
 
 set -eux
 
-target="${1:-all}"
+target="${1:-default}"
 dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 cd "$dir"
 
 case "$target" in
-  all)
-    "$dir/do" doc
-  ;;
-  clean)
-    cargo clean
-    rm -rf ./man/generated/
+  default)
+    echo "Try ./do test or ./do doc."
   ;;
   doc)
     mkdir -p ./man/generated/

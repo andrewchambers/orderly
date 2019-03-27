@@ -1,4 +1,3 @@
 /target
-**/*.rs.bk
-/man/overseer.1
-/man/overseer.1.html
+/test/cases/*/*.out
+
