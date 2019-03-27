@@ -1,0 +1,14 @@
+#! /bin/sh
+
+set -eux
+
+export PATH="$PATH:./target/debug/"
+
+overseer \
+  -status-file "./orderly.status" \
+  -restarts-per-second 0.01 \
+  -max-restarts 5 \
+  -- \
+  -name redis -all-commands ./example/redis \
+  -- \
+  -name unstable-service -all-commands ./example/unstable-service 

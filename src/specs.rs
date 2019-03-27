@@ -7,10 +7,14 @@ pub enum SpecError {
 pub struct ProcSpecBuilder {
   name: Option<String>,
   run: Option<String>,
+  wait_started: Option<String>,
+  wait_started_timeout_seconds: Option<f64>,
   check: Option<String>,
-  post: Option<String>,
+  check_timeout_seconds: Option<f64>,
   shutdown: Option<String>,
+  shutdown_timeout_seconds: Option<f64>,
   cleanup: Option<String>,
+  cleanup_timeout_seconds: Option<f64>,
 }
 
 impl ProcSpecBuilder {
@@ -19,9 +23,13 @@ impl ProcSpecBuilder {
       name: None,
       run: None,
       check: None,
-      post: None,
+      check_timeout_seconds: Some(60.0),
+      wait_started: None,
+      wait_started_timeout_seconds: Some(60.0),
       shutdown: None,
+      shutdown_timeout_seconds: Some(60.0),
       cleanup: None,
+      cleanup_timeout_seconds: Some(60.0),
     }
   }
 
@@ -37,8 +45,8 @@ impl ProcSpecBuilder {
     self.check = Some(check)
   }
 
-  pub fn set_post_start(&mut self, post: String) {
-    self.post = Some(post)
+  pub fn set_wait_started(&mut self, wait_started: String) {
+    self.wait_started = Some(wait_started)
   }
 
   pub fn set_cleanup(&mut self, cleanup: String) {
@@ -49,14 +57,50 @@ impl ProcSpecBuilder {
     self.shutdown = Some(shutdown)
   }
 
+  pub fn set_wait_started_timeout_seconds(&mut self, timeout_seconds: f64) {
+    self.wait_started_timeout_seconds = if timeout_seconds > 0.0 {
+      Some(timeout_seconds)
+    } else {
+      None
+    }
+  }
+
+  pub fn set_check_timeout_seconds(&mut self, timeout_seconds: f64) {
+    self.check_timeout_seconds = if timeout_seconds > 0.0 {
+      Some(timeout_seconds)
+    } else {
+      None
+    }
+  }
+
+  pub fn set_shutdown_timeout_seconds(&mut self, timeout_seconds: f64) {
+    self.shutdown_timeout_seconds = if timeout_seconds > 0.0 {
+      Some(timeout_seconds)
+    } else {
+      None
+    }
+  }
+
+  pub fn set_cleanup_timeout_seconds(&mut self, timeout_seconds: f64) {
+    self.cleanup_timeout_seconds = if timeout_seconds > 0.0 {
+      Some(timeout_seconds)
+    } else {
+      None
+    }
+  }
+
   pub fn build(self) -> Result<ProcSpec, SpecError> {
     let mut spec = ProcSpec {
       name: "".to_string(),
       run: "".to_string(),
       check: self.check,
-      post: self.post,
+      check_timeout_seconds: self.check_timeout_seconds,
       shutdown: self.shutdown,
+      shutdown_timeout_seconds: self.shutdown_timeout_seconds,
       cleanup: self.cleanup,
+      cleanup_timeout_seconds: self.cleanup_timeout_seconds,
+      wait_started: self.wait_started,
+      wait_started_timeout_seconds: self.wait_started_timeout_seconds,
     };
     match &self.name {
       Some(name) => spec.name = name.clone(),
@@ -76,10 +120,14 @@ impl ProcSpecBuilder {
 pub struct ProcSpec {
   pub name: String,
   pub run: String,
+  pub wait_started: Option<String>,
+  pub wait_started_timeout_seconds: Option<f64>,
   pub check: Option<String>,
-  pub post: Option<String>,
+  pub check_timeout_seconds: Option<f64>,
   pub shutdown: Option<String>,
+  pub shutdown_timeout_seconds: Option<f64>,
   pub cleanup: Option<String>,
+  pub cleanup_timeout_seconds: Option<f64>,
 }
 
 #[derive(Debug)]
@@ -87,13 +135,15 @@ pub struct SupervisorSpecBuilder {
   status_file: Option<String>,
   pub restarts_per_second: f64,
   pub max_restarts: f64,
+  pub check_delay_seconds: f64,
   procs: Vec<ProcSpec>,
 }
 
 #[derive(Debug)]
 pub struct SupervisorSpec {
-  pub status_file: String,
+  pub status_file: Option<String>,
   pub restarts_per_second: f64,
+  pub check_delay_seconds: f64,
   pub max_restarts: f64,
   pub procs: Vec<ProcSpec>,
 }
@@ -103,6 +153,7 @@ impl SupervisorSpecBuilder {
     SupervisorSpecBuilder {
       restarts_per_second: 0.1,
       max_restarts: 5.0,
+      check_delay_seconds: 5.0,
       status_file: None,
       procs: vec![],
     }
@@ -116,6 +167,10 @@ impl SupervisorSpecBuilder {
     self.max_restarts = max_restarts;
   }
 
+  pub fn set_check_delay_seconds(&mut self, check_delay_seconds: f64) {
+    self.check_delay_seconds = check_delay_seconds;
+  }
+
   pub fn set_status_file(&mut self, status_file: String) {
     self.status_file = Some(status_file);
   }
@@ -127,15 +182,11 @@ impl SupervisorSpecBuilder {
   pub fn build(self) -> Result<SupervisorSpec, SpecError> {
     let mut spec = SupervisorSpec {
       restarts_per_second: self.restarts_per_second,
+      check_delay_seconds: self.check_delay_seconds,
       max_restarts: self.max_restarts,
-      status_file: "".to_string(),
+      status_file: self.status_file,
       procs: vec![],
     };
-
-    match &self.status_file {
-      Some(status_file) => spec.status_file = status_file.clone(),
-      None => return Err(SpecError::MissingField("status-file")),
-    }
 
     spec.procs = self.procs;
 

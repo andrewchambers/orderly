@@ -1,18 +1,15 @@
 mod specs;
-use std::io::BufRead;
-use std::io::BufReader;
+use std::ops::Add;
 use std::os::unix::process::CommandExt;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 // TODO:
 // Embed ronn manual.
-// Check wait period option.
-// Startup timeout option.
 // Graceful shutdown timeout.
-// Startup initial check wait.
-// Startup check rate option.
-// Process groups?
-// Write status file.
+// Process group improvements:
+// We maybe need a launcher proc? if we are killed I'm not sure the run group gets killed.
+// Test suite.
+// Rename to orderly.
 
 fn die(s: &str) -> ! {
   log::error!("{}", s);
@@ -31,6 +28,7 @@ struct Supervisor {
   procs: Vec<Option<std::process::Child>>,
   rate_limiter: RateLimiter,
   sigrx: crossbeam_channel::Receiver<Signal>,
+  first_start: bool,
 }
 
 enum Signal {
@@ -45,12 +43,6 @@ enum SupervisorError {
   Terminated,
   RestartLimitReached,
   ProcFailed,
-}
-
-#[derive(Debug)]
-enum ProcStatus {
-  Starting,
-  Running,
 }
 
 impl From<std::io::Error> for SupervisorError {
@@ -71,7 +63,7 @@ impl RateLimiter {
       capacity: capacity,
       tokens: capacity,
       tokens_per_sec: tokens_per_sec,
-      last_add: std::time::Instant::now(),
+      last_add: Instant::now(),
     }
   }
 
@@ -99,56 +91,6 @@ impl RateLimiter {
   }
 }
 
-fn run_command_take_last_line(
-  command: &str,
-  env: &Vec<(String, String)>,
-) -> Result<String, SupervisorError> {
-  let mut cmd = std::process::Command::new(command);
-
-  cmd.stdin(std::process::Stdio::null());
-  cmd.stdout(std::process::Stdio::piped());
-  for v in env {
-    cmd.env(&v.0, &v.1);
-  }
-  let mut cmd = cmd.spawn()?;
-
-  let stdout = cmd.stdout.as_mut().unwrap();
-  let rdr = BufReader::new(stdout);
-  let mut first = true;
-  let mut last_line = String::new();
-  for line in rdr.lines() {
-    let line = line?;
-    if !first {
-      println!("{}", last_line);
-    }
-    last_line = line;
-    first = false;
-  }
-
-  let wait_result = cmd.wait()?;
-
-  if !wait_result.success() {
-    return Err(SupervisorError::ProcFailed);
-  }
-
-  Ok(last_line)
-}
-
-fn run_command(command: &str, env: &Vec<(String, String)>) -> Result<(), SupervisorError> {
-  let mut cmd = std::process::Command::new(command);
-  cmd.stdin(std::process::Stdio::null());
-  for v in env {
-    cmd.env(&v.0, &v.1);
-  }
-  let mut c = cmd.spawn()?;
-  let rc = c.wait()?;
-  if rc.success() {
-    Ok(())
-  } else {
-    Err(SupervisorError::ProcFailed)
-  }
-}
-
 impl Supervisor {
   fn new(spec: specs::SupervisorSpec, sigrx: crossbeam_channel::Receiver<Signal>) -> Self {
     let mut procs = vec![];
@@ -163,6 +105,28 @@ impl Supervisor {
       procs: procs,
       sigrx: sigrx,
       rate_limiter: limiter,
+      first_start: true,
+    }
+  }
+
+  fn write_status_file(&mut self, status: &str) -> Result<(), SupervisorError> {
+    match self.spec.status_file {
+      Some(ref status_file) => {
+        let status_file = std::path::PathBuf::from(status_file);
+        let mut tmp_path = status_file.clone();
+        let mut ext = if let Some(ext) = tmp_path.extension() {
+          String::from(ext.to_str().unwrap_or(""))
+        } else {
+          String::from("")
+        };
+        ext.push_str(".tmp");
+        tmp_path.set_extension(ext);
+
+        std::fs::write(&tmp_path, status)?;
+        std::fs::rename(&tmp_path, &status_file)?;
+        Ok(())
+      }
+      None => Ok(()),
     }
   }
 
@@ -189,64 +153,126 @@ impl Supervisor {
     Ok(())
   }
 
-  fn get_proc_script_env(&mut self, idx: usize) -> Vec<(String, String)> {
-    match &self.procs[idx] {
-      Some(c) => vec![(String::from("SUPERVISED_PID"), format!("{}", c.id()))],
-      None => vec![],
+  fn kill_child_and_pg(c: &mut std::process::Child) -> Result<(), SupervisorError> {
+    let rc = unsafe { libc::killpg(c.id() as i32, libc::SIGKILL) };
+    if rc != 0 {
+      log::warn!("WARNING - killing process group failed");
     }
+
+    Ok(c.kill()?)
+  }
+
+  fn spawn_child(
+    command: &str,
+    env: &Vec<(String, String)>,
+  ) -> Result<std::process::Child, SupervisorError> {
+    let mut cmd = std::process::Command::new(command);
+    cmd.stdin(std::process::Stdio::null());
+    for v in env {
+      cmd.env(&v.0, &v.1);
+    }
+    cmd.before_exec(|| {
+      match nix::unistd::setpgid(nix::unistd::Pid::from_raw(0), nix::unistd::Pid::from_raw(0)) {
+        Ok(_pid) => Ok(()),
+        Err(_err) => Err(std::io::Error::from(std::io::ErrorKind::Other)),
+      }
+    });
+    Ok(cmd.spawn()?)
+  }
+
+  fn deadline_from_float_seconds(start: Instant, timeout_seconds: Option<f64>) -> Option<Instant> {
+    match timeout_seconds {
+      Some(secs) => Some(start.add(Duration::from_millis((secs * 1000.0) as u64))),
+      None => None,
+    }
+  }
+
+  fn run_command_timeout_secs(
+    &mut self,
+    command: &str,
+    env: &Vec<(String, String)>,
+    timeout_secs: Option<f64>,
+  ) -> Result<(), SupervisorError> {
+    self.run_command(
+      command,
+      env,
+      Supervisor::deadline_from_float_seconds(Instant::now(), timeout_secs),
+    )
+  }
+
+  fn run_command(
+    &mut self,
+    command: &str,
+    env: &Vec<(String, String)>,
+    deadline: Option<Instant>,
+  ) -> Result<(), SupervisorError> {
+    let mut c = Supervisor::spawn_child(command, env)?;
+
+    let max_delay: u64 = 500;
+    let mut delay: u64 = 10;
+
+    loop {
+      self.check_signals()?;
+
+      if let Some(deadline) = deadline {
+        let now = Instant::now();
+        if now > deadline {
+          Supervisor::kill_child_and_pg(&mut c)?;
+          return Err(SupervisorError::ProcFailed);
+        }
+      }
+
+      match c.try_wait()? {
+        Some(rc) => {
+          return if rc.success() {
+            Ok(())
+          } else {
+            Err(SupervisorError::ProcFailed)
+          };
+        }
+        None => {
+          self.sleep(Duration::from_millis(delay))?;
+          delay += 50;
+          if delay > max_delay {
+            delay = max_delay
+          }
+        }
+      };
+    }
+  }
+
+  fn get_proc_script_env(&mut self, action: &str, idx: usize) -> Vec<(String, String)> {
+    let mut env = vec![];
+
+    env.push((String::from("ORDERLY_ACTION"), String::from(action)));
+    env.push((
+      String::from("ORDERLY_SERVICE_NAME"),
+      self.spec.procs[idx].name.clone(),
+    ));
+
+    if let Some(c) = &self.procs[idx] {
+      env.push((String::from("ORDERLY_PID"), format!("{}", c.id())));
+    }
+
+    env
   }
 
   fn kill_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
     // Kill is not affected by signals...
-    log::info!("killing {}", self.spec.procs[idx].name.as_str());
+
     let p = &mut self.procs[idx];
 
     match p {
       Some(c) => {
+        log::info!("killing {}", self.spec.procs[idx].name.as_str());
+
         let rc = unsafe { libc::killpg(c.id() as i32, libc::SIGKILL) };
         if rc != 0 {
           log::warn!("WARNING - killing process group failed");
         }
 
-        match c.kill() {
-          Ok(()) => (),
-          Err(e) => match e.kind() {
-            std::io::ErrorKind::InvalidInput => (),
-            _ => return Err(e)?,
-          },
-        }
+        Supervisor::kill_child_and_pg(c)?;
         c.wait()?;
-        *p = None;
-      }
-      None => (),
-    };
-
-    if let Err(e) = self.clean_proc(idx) {
-      log::warn!("ignoring error '{:?}' while cleaning killed process", e);
-    }
-
-    Ok(())
-  }
-
-  fn shutdown_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
-    self.check_signals()?;
-
-    log::info!("shutting down {}", self.spec.procs[idx].name.as_str());
-
-    let env = self.get_proc_script_env(idx);
-    let p = &mut self.procs[idx];
-
-    match p {
-      Some(c) => {
-        match self.spec.procs[idx].shutdown {
-          Some(ref shutdown) => match run_command(shutdown, &env) {
-            Ok(()) => (),
-            Err(_) => return self.kill_proc(idx),
-          },
-          None => return self.kill_proc(idx),
-        }
-
-        let _ = c.wait()?;
         *p = None;
       }
       None => (),
@@ -257,25 +283,86 @@ impl Supervisor {
     Ok(())
   }
 
-  fn check_proc(&mut self, idx: usize) -> Result<ProcStatus, SupervisorError> {
+  fn shutdown_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
+    self.check_signals()?;
+
+    log::info!("shutting down {}", self.spec.procs[idx].name.as_str());
+
+    let start_t = Instant::now();
+    let deadline = Supervisor::deadline_from_float_seconds(
+      start_t,
+      self.spec.procs[idx].shutdown_timeout_seconds,
+    );
+    let env = self.get_proc_script_env("SHUTDOWN", idx);
+
+    match self.spec.procs[idx].shutdown {
+      Some(ref shutdown) => match self.run_command(&shutdown.clone(), &env, deadline) {
+        Ok(c) => c,
+        Err(err) => {
+          log::warn!("shutdown script error: {:?}", err);
+          return self.kill_proc(idx);
+        }
+      },
+      None => return self.kill_proc(idx),
+    };
+
+    // XXX Some duplication from run_command, but ownership makes this hard to reuse.
+    let max_delay: u64 = 500;
+    let mut delay: u64 = 10;
+
+    loop {
+      self.check_signals()?;
+
+      if let Some(deadline) = deadline {
+        if Instant::now() > deadline {
+          log::warn!("shutdown script exited, but shutdown timed out, using kill instead.");
+          return self.kill_proc(idx);
+        }
+      }
+
+      {
+        let p = &mut self.procs[idx];
+        match p {
+          Some(c) => match c.try_wait()? {
+            Some(_) => {
+              *p = None;
+              break;
+            }
+            None => (),
+          },
+          None => break,
+        };
+      }
+
+      self.sleep(Duration::from_millis(delay))?;
+      delay += 50;
+      if delay > max_delay {
+        delay = max_delay
+      }
+    }
+
+    self.clean_proc(idx)?;
+
+    Ok(())
+  }
+
+  fn check_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
     self.check_signals()?;
 
     log::info!("checking {}", self.spec.procs[idx].name);
 
-    let env = self.get_proc_script_env(idx);
+    let env = self.get_proc_script_env("CHECK", idx);
     let p = &mut self.procs[idx];
 
     match p {
       Some(c) => match c.try_wait()? {
         None => {
-          let s = self.spec.procs.get(idx).unwrap();
+          let s = &self.spec.procs[idx];
           match s.check {
-            Some(ref check) => match run_command_take_last_line(check, &env)?.as_str() {
-              "STARTING" => Ok(ProcStatus::Starting),
-              "RUNNING" => Ok(ProcStatus::Running),
-              _ => Err(SupervisorError::ProcFailed),
-            },
-            None => Ok(ProcStatus::Running),
+            Some(ref check) => {
+              self.run_command_timeout_secs(&check.clone(), &env, s.check_timeout_seconds)
+            }
+            None => Ok(()),
           }
         }
         Some(_) => {
@@ -300,43 +387,29 @@ impl Supervisor {
       }
     }
 
-    let s = self.spec.procs.get(idx).unwrap();
-    match s.cleanup {
-      Some(ref cleanup) => run_command(cleanup, &vec![]),
-      None => Ok(()),
-    }
-  }
-
-  fn post_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
-    self.check_signals()?;
-
-    log::info!("running {} post", self.spec.procs[idx].name);
-
-    let env = self.get_proc_script_env(idx);
+    let env = self.get_proc_script_env("CLEANUP", idx);
     let s = &self.spec.procs[idx];
-    match s.post {
-      Some(ref post) => run_command(post, &env),
+    match s.cleanup {
+      Some(ref cleanup) => {
+        self.run_command_timeout_secs(&cleanup.clone(), &env, s.cleanup_timeout_seconds)
+      }
       None => Ok(()),
     }
   }
 
   fn start_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
-    {
-      self.check_signals()?;
-
-      let p = &self.procs[idx];
-
-      match p {
-        Some(_) => self.kill_proc(idx)?,
-        None => (),
-      }
-    }
+    self.check_signals()?;
 
     log::info!("starting {}", self.spec.procs[idx].name);
 
+    let env = self.get_proc_script_env("RUN", idx);
     let s = self.spec.procs.get(idx).unwrap();
+    let mut cmd = std::process::Command::new(&s.run);
 
-    let mut cmd = std::process::Command::new(s.run.clone());
+    for v in env {
+      cmd.env(v.0, v.1);
+    }
+
     cmd.before_exec(|| {
       match nix::unistd::setpgid(nix::unistd::Pid::from_raw(0), nix::unistd::Pid::from_raw(0)) {
         Ok(_pid) => Ok(()),
@@ -344,25 +417,22 @@ impl Supervisor {
       }
     });
     let c = cmd.spawn()?;
+    self.procs[idx] = Some(c);
 
     {
-      self.procs[idx] = Some(c);
-    }
-
-    loop {
-      self.sleep(Duration::from_millis(100))?;
-
-      match self.check_proc(idx)? {
-        ProcStatus::Starting => (),
-        ProcStatus::Running => {
-          log::info!(
-            "proc is up, running post start script: {}",
-            self.spec.procs[idx].name
-          );
-          return self.post_proc(idx);
-        }
+      let env = self.get_proc_script_env("WAIT_STARTED", idx);
+      let s = &self.spec.procs[idx];
+      match s.wait_started {
+        Some(ref wait_started) => self.run_command_timeout_secs(
+          &wait_started.clone(),
+          &env,
+          s.wait_started_timeout_seconds,
+        )?,
+        None => (),
       }
     }
+
+    Ok(())
   }
 
   fn kill_all_procs(&mut self) -> Result<(), SupervisorError> {
@@ -370,6 +440,14 @@ impl Supervisor {
       self.kill_proc(i)?;
     }
     Ok(())
+  }
+
+  fn kill_all_procs_ignore_errors(&mut self) {
+    for i in (0..self.procs.len()).rev() {
+      if let Err(e) = self.kill_proc(i) {
+        log::warn!("error while killing proc: {:?}", e);
+      }
+    }
   }
 
   fn shutdown_all_procs(&mut self) -> Result<(), SupervisorError> {
@@ -388,7 +466,7 @@ impl Supervisor {
 
     self.kill_all_procs()?;
 
-    for i in (0..self.procs.len()).rev() {
+    for i in 0..self.procs.len() {
       self.start_proc(i)?;
     }
 
@@ -403,15 +481,30 @@ impl Supervisor {
     Ok(())
   }
 
-  fn one_for_all_run_procs(&mut self) -> SupervisorError {
+  fn supervise(&mut self) -> SupervisorError {
+    if self.first_start {
+      if let Err(e) = self.write_status_file("STARTING\n") {
+        return e;
+      }
+    }
+
     match self.restart_all_procs() {
       Ok(()) => (),
       Err(e) => return e,
+    };
+
+    if self.first_start {
+      self.first_start = false;
+      if let Err(e) = self.write_status_file("RUNNING\n") {
+        return e;
+      }
     }
 
     loop {
       match self.check_all_procs() {
-        Ok(()) => match self.sleep(Duration::from_secs(10)) {
+        Ok(()) => match self.sleep(Duration::from_millis(
+          (self.spec.check_delay_seconds * 1000.0) as u64,
+        )) {
           Ok(()) => continue,
           Err(e) => return e,
         },
@@ -421,8 +514,10 @@ impl Supervisor {
   }
 
   fn supervise_forever(&mut self) {
+    let rc: i32;
+
     loop {
-      match self.one_for_all_run_procs() {
+      match self.supervise() {
         e @ SupervisorError::IOError(_) | e @ SupervisorError::ProcFailed => {
           log::warn!("supervisor encountered an error: {:?}", e);
         }
@@ -432,24 +527,31 @@ impl Supervisor {
             Ok(()) => (),
             Err(e) => {
               log::error!("unable shutdown child procs, killing instead: {:?}", e);
-              match self.kill_all_procs() {
-                Ok(()) => (),
-                Err(e) => log::error!("unable kill child procs: {:?}", e),
-              }
+              self.kill_all_procs_ignore_errors();
             }
           }
-          std::process::exit(0)
+          rc = 0;
+          break;
         }
-        SupervisorError::Terminated | SupervisorError::RestartLimitReached => {
-          log::info!("supervisor shutting down brutally.");
-          match self.kill_all_procs() {
-            Ok(()) => (),
-            Err(e) => log::error!("unable kill child procs: {:?}", e),
-          }
-          std::process::exit(1)
+        e @ SupervisorError::Terminated | e @ SupervisorError::RestartLimitReached => {
+          log::error!(
+            "supervisor unable to continue: {:?} - shutting down brutally",
+            e
+          );
+          self.kill_all_procs_ignore_errors();
+          rc = 1;
+          break;
         }
       }
     }
+
+    if let Some(ref path) = self.spec.status_file {
+      if let Err(err) = std::fs::remove_file(path) {
+        log::warn!("error removing status file: {}", err);
+      }
+    }
+
+    std::process::exit(rc);
   }
 }
 
@@ -473,6 +575,19 @@ fn main() {
           .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", rps).as_ref()));
 
         supervisor_spec_builder.set_restarts_per_second(rps);
+
+        arg_idx += 2;
+      }
+      "-check-delay" => {
+        let check_delay = args
+          .get(arg_idx + 1)
+          .unwrap_or_else(|| die("-check-delay expects a number."));
+
+        let check_delay = check_delay
+          .parse::<f64>()
+          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", check_delay).as_ref()));
+
+        supervisor_spec_builder.set_check_delay_seconds(check_delay);
 
         arg_idx += 2;
       }
@@ -526,11 +641,37 @@ fn main() {
         proc_spec_builder.set_check(check.clone());
         arg_idx += 2;
       }
-      "-post-start" => {
-        let post = args
+      "-check-timeout" => {
+        let check_timeout = args
           .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-post-start expected an argument."));
-        proc_spec_builder.set_post_start(post.clone());
+          .unwrap_or_else(|| die("-check-timeout expects a number."));
+
+        let check_timeout = check_timeout
+          .parse::<f64>()
+          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", check_timeout).as_ref()));
+
+        proc_spec_builder.set_check_timeout_seconds(check_timeout);
+
+        arg_idx += 2;
+      }
+      "-wait-started" => {
+        let wait_started = args
+          .get(arg_idx + 1)
+          .unwrap_or_else(|| die("-wait-started expected an argument."));
+        proc_spec_builder.set_wait_started(wait_started.clone());
+        arg_idx += 2;
+      }
+      "-wait-started-timeout" => {
+        let wait_started_timeout = args
+          .get(arg_idx + 1)
+          .unwrap_or_else(|| die("-wait-started-timeout expects a number."));
+
+        let wait_started_timeout = wait_started_timeout.parse::<f64>().unwrap_or_else(|_e| {
+          die(format!("{} is not a valid f64.", wait_started_timeout).as_ref())
+        });
+
+        proc_spec_builder.set_wait_started_timeout_seconds(wait_started_timeout);
+
         arg_idx += 2;
       }
       "-cleanup" => {
@@ -540,11 +681,48 @@ fn main() {
         proc_spec_builder.set_cleanup(cleanup.clone());
         arg_idx += 2;
       }
+      "-cleanup-timeout" => {
+        let cleanup_timeout = args
+          .get(arg_idx + 1)
+          .unwrap_or_else(|| die("-cleanup-timeout expects a number."));
+
+        let cleanup_timeout = cleanup_timeout
+          .parse::<f64>()
+          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", cleanup_timeout).as_ref()));
+
+        proc_spec_builder.set_cleanup_timeout_seconds(cleanup_timeout);
+
+        arg_idx += 2;
+      }
       "-shutdown" => {
         let shutdown = args
           .get(arg_idx + 1)
           .unwrap_or_else(|| die("-shutdown expected an argument."));
         proc_spec_builder.set_shutdown(shutdown.clone());
+        arg_idx += 2;
+      }
+      "-shutdown-timeout" => {
+        let shutdown_timeout = args
+          .get(arg_idx + 1)
+          .unwrap_or_else(|| die("-shutdown-timeout expects a number."));
+
+        let shutdown_timeout = shutdown_timeout
+          .parse::<f64>()
+          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", shutdown_timeout).as_ref()));
+
+        proc_spec_builder.set_shutdown_timeout_seconds(shutdown_timeout);
+
+        arg_idx += 2;
+      }
+      "-all-commands" => {
+        let all = args
+          .get(arg_idx + 1)
+          .unwrap_or_else(|| die("-all-commands expected an argument."));
+        proc_spec_builder.set_run(all.clone());
+        proc_spec_builder.set_check(all.clone());
+        proc_spec_builder.set_wait_started(all.clone());
+        proc_spec_builder.set_shutdown(all.clone());
+        proc_spec_builder.set_cleanup(all.clone());
         arg_idx += 2;
       }
       "--" => {
