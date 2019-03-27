@@ -7,4 +7,4 @@ tasks:
   - test: |
       echo $NIX_PATH
       cd orderly
-      ./do test
+      ./ci/run_ci

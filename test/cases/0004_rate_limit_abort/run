@@ -6,7 +6,7 @@ cd "$dir"
 
 set -eux
 
-if overseer -max-restarts 5 -restarts-per-second 0.2 -- \
+if orderly -max-restarts 5 -restarts-per-second 0.2 -- \
   -name sv -wait-started-timeout 1.1 -run ./sv -wait-started ./sv > test.out 
 then
   echo "expected failure."
