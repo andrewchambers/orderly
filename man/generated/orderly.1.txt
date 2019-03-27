@@ -1,0 +1,62 @@
+ORDERLY(1)                                                                             ORDERLY(1)
+
+NAME
+       orderly - run and supervise processes.
+
+SYNOPSIS
+       orderly supervisorspec... -- <progspec...> [-- ...]
+
+DESCRIPTION
+       orderly  Provides ordered starting, supervision and stopping of a collection of processes.
+       orderly starts a list of processes in order, then monitors them with provided health check
+       scripts. On failure, processes are stopped and restarted in a well specified order follow‐
+       ing the specified restart strategy. On unrecoverable errors, orderly itself aborts  execu‐
+       tion.
+
+       Arrangement of orderly invocations in a tree hierarchy allows the creation of fault toler‐
+       ant process supervision trees.
+
+SIGNALS
+       On SIGINT orderly sents SIGINT to all processes in reverse order, and waits  for  them  to
+       exit.  If  the process spec has a shutdown grace period, processes are killed with SIGKILL
+       after the shutdown grace period has elapsed.
+
+       On SIGTERM orderly kills all processes in reverse order, then exits as soon  as  possible.
+       Cleanup scripts will be run in reverse order next time orderly is restarted.
+
+SUPERVISOR SPEC FLAGS
+       -restarts-per-second NUM (default=0.1)
+              TODO
+
+       -max-restarts NUM (default=5)
+              TODO
+
+       -status-file PATH:
+
+              If  specified, a file atomically updated with the current status of orderly it will
+              contain either "STARTING", "RUNNING" or "EXITED" .
+
+PROCESS SPEC FLAGS
+       TODO
+
+EXAMPLES
+       $ orderly \
+         -restarts-per-second 0.1 \
+         -max-restarts 5 \
+         -- \
+         -name redis \
+         -run ./start-redis \
+         -post-start ./post-start-redis \
+         -check ./check-redis \
+         -cleanup ./cleanup-redis \
+         -- \
+         -name webapp \
+         -run ./start-webapp \
+         -post-start ./post-start-webapp
+         -check ./check-webapp \
+         -cleanup ./cleanup-webapp
+
+COPYRIGHT
+       orderly is Copyright (C) 2019 Andrew Chambers https://acha.ninja/
+
+                                            March 2019                                 ORDERLY(1)
