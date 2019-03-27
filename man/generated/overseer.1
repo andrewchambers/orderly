@@ -1,0 +1,66 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "OVERSEER" "1" "March 2019" "" ""
+.
+.SH "NAME"
+\fBoverseer\fR \- run and supervise processes\.
+.
+.SH "SYNOPSIS"
+\fBoverseer\fR \fIsupervisorspec\fR\.\.\. \-\- <progspec\.\.\.> [\-\- \.\.\.]
+.
+.SH "DESCRIPTION"
+\fBoverseer\fR Provides ordered starting, supervision and stopping of a collection of processes\. \fBoverseer\fR starts a list of processes in order, then monitors them with provided health check scripts\. On failure, processes are stopped and restarted in a well specified order following the specified restart strategy\. On unrecoverable errors, \fBoverseer\fR itself aborts execution\.
+.
+.P
+Arrangement of overseer invocations in a tree hierarchy allows the creation of fault tolerant process supervision trees\.
+.
+.SH "SIGNALS"
+On SIGINT \fBoverseer\fR sents SIGINT to all processes in reverse order, and waits for them to exit\. If the process spec has a shutdown grace period, processes are killed with SIGKILL after the shutdown grace period has elapsed\.
+.
+.P
+On SIGTERM \fBoverseer\fR kills all processes in reverse order, then exits as soon as possible\. Cleanup scripts will be run in reverse order next time overseer is restarted\.
+.
+.SH "SUPERVISOR SPEC FLAGS"
+.
+.TP
+\fB\-restarts\-per\-second NUM (default=0\.1)\fR
+TODO
+.
+.TP
+\fB\-max\-restarts NUM (default=5)\fR
+TODO
+.
+.TP
+\fB\-status\-file PATH\fR:
+.
+.IP
+If specified, a file atomically updated with the current status of overseer it will contain either "STARTING", "RUNNING" or "EXITED" \.
+.
+.SH "PROCESS SPEC FLAGS"
+TODO
+.
+.SH "EXAMPLES"
+.
+.nf
+
+$ overseer \e
+  \-restarts\-per\-second 0\.1 \e
+  \-max\-restarts 5 \e
+  \-\- \e
+  \-name redis \e
+  \-run \./start\-redis \e
+  \-post\-start \./post\-start\-redis \e
+  \-check \./check\-redis \e
+  \-cleanup \./cleanup\-redis \e
+  \-\- \e
+  \-name webapp \e
+  \-run \./start\-webapp \e
+  \-post\-start \./post\-start\-webapp
+  \-check \./check\-webapp \e
+  \-cleanup \./cleanup\-webapp
+.
+.fi
+.
+.SH "COPYRIGHT"
+overseer is Copyright (C) 2019 Andrew Chambers \fIhttps://acha\.ninja/\fR

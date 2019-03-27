@@ -1,0 +1,34 @@
+#! /usr/bin/env bash
+
+set -eux
+
+case $ORDERLY_ACTION in
+  RUN)
+    exec overseer -check-delay 60 -status-file nested.status \
+      -- -name sv3 -all-commands ./sv \
+      -- -name sv4 -all-commands ./sv 
+  ;;
+  WAIT_STARTED)
+    while true
+    do
+      sleep 0.5
+      if test -f nested.status && test $(cat nested.status) = "RUNNING"
+      then
+        exit 0
+      fi
+    done
+  ;;
+  CHECK)
+    test -f nested.status && test $(cat nested.status) = "RUNNING"
+  ;;
+  SHUTDOWN)
+    kill -SIGINT "$ORDERLY_PID"
+  ;;
+  CLEANUP)
+    rm -f nested.status
+  ;;
+  *)
+    echo "unknown action: $ORDERLY_ACTION"
+    exit 1
+  ;;
+esac

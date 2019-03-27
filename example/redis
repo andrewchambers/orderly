@@ -29,6 +29,7 @@ case $ORDERLY_ACTION in
   SHUTDOWN)
     echo "shutting down redis pid=($ORDERLY_PID)"
     redis-cli shutdown || kill -9 $ORDERLY_PID
+    wait 
   ;;
   CLEANUP)
     rm -f dump.rdb

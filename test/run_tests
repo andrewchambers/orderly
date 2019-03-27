@@ -1,0 +1,22 @@
+#! /usr/bin/env bash
+
+set -eu
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd "$dir"
+
+for tc in $(ls ./cases/)
+do
+  echo "$tc ... "
+  if timeout 120s "./cases/$tc/run"
+  then
+    echo "$tc PASS"
+  else
+    echo "$tc FAIL"
+    exit 1
+  fi
+done
+
+echo "ALL PASS"
+
+

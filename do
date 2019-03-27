@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p ronn cargo 
+#! nix-shell -i bash -p ronn 
 
 set -eux
 
@@ -11,19 +11,22 @@ cd "$dir"
 case "$target" in
   all)
     "$dir/do" doc
-    # does not work currently, we are using rustup not nix.
-    # "$dir/do" release
   ;;
   clean)
-  	cargo clean
-  	rm -f ./man/overseer.1
-  	rm -f ./man/overseer.1.html
+    cargo clean
+    rm -rf ./man/generated/
   ;;
   doc)
-    ronn ./man/overseer.1.ronn
+    mkdir -p ./man/generated/
+    cp ./man/overseer.1.ronn ./man/generated/
+    ronn ./man/generated/overseer.1.ronn
+    rm ./man/generated/overseer.1.ronn
+    MANWIDTH=100 man ./man/generated/overseer.1 | col -bx > ./man/generated/overseer.1.txt
   ;;
-  release)
-    cargo build --release
+  test)
+    cargo build
+    export PATH="$PATH:$(pwd)/target/debug/"
+    ./test/run_tests
   ;;
   *)
     echo "Don't know how to do '$target'"

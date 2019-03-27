@@ -1,0 +1,25 @@
+#! /usr/bin/env bash
+
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd "$dir"
+
+set -eux
+
+overseer -check-delay 60 -- \
+  -name sv1 -all-commands ./sv \
+  -- \
+  -name sv2 -all-commands ./sv \
+  -- \
+  -name nested -all-commands ./nested \
+  -- \
+  -name sv4 -all-commands ./sv  > test.out &
+pid="$!"
+sleep 5
+kill -SIGINT "$pid"
+
+wait
+
+diff -u <(grep "^sv" test.out) test.expected
+
+

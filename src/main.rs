@@ -4,12 +4,12 @@ use std::os::unix::process::CommandExt;
 use std::time::{Duration, Instant};
 
 // TODO:
-// Embed ronn manual.
-// Graceful shutdown timeout.
-// Process group improvements:
-// We maybe need a launcher proc? if we are killed I'm not sure the run group gets killed.
-// Test suite.
 // Rename to orderly.
+
+fn usage() {
+  println!(include_str!("../man/generated/overseer.1.txt"));
+  std::process::exit(1);
+}
 
 fn die(s: &str) -> ! {
   log::error!("{}", s);
@@ -550,6 +550,12 @@ fn main() {
 
   let mut supervisor_spec_builder = specs::SupervisorSpecBuilder::new();
   let mut proc_spec_builder = specs::ProcSpecBuilder::new();
+
+  for a in &args {
+    if a == "-h" || a == "--help" {
+      usage();
+    }
+  }
 
   while arg_idx < args.len() {
     match args[arg_idx].as_ref() {
