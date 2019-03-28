@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p ronn
+#! nix-shell -i bash -p pandoc ronn
 
 set -eux
 
@@ -10,14 +10,20 @@ cd "$dir"
 
 case "$target" in
   default)
-    echo "Try ./do test or ./do doc."
+    echo "Try ./do test , ./do doc or ./do format-doc."
+  ;;
+  format-doc)
+    pandoc -f gfm -t gfm man/orderly.1.md > man/orderly.1.md.tmp
+    mv man/orderly.1.md.tmp man/orderly.1.md
   ;;
   doc)
-    mkdir -p ./man/generated/
-    cp ./man/orderly.1.ronn ./man/generated/
-    ronn ./man/generated/orderly.1.ronn
-    rm ./man/generated/orderly.1.ronn
-    MANWIDTH=100 man ./man/generated/orderly.1 | col -bx > ./man/generated/orderly.1.txt
+    rm -rf ./man/generated
+    mkdir -p ./man/generated
+    cp man/orderly.1.md ./man/generated/
+    cd ./man/generated
+    ronn orderly.1.md
+    rm orderly.1.md
+    MANWIDTH=100 man -l ./orderly.1 | col -bx > ./orderly.1.txt
   ;;
   test)
     cargo build

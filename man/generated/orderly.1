@@ -4,63 +4,203 @@
 .TH "ORDERLY" "1" "March 2019" "" ""
 .
 .SH "NAME"
-\fBorderly\fR \- run and supervise processes\.
+\fBORDERLY\fR \- run and supervise processes
 .
-.SH "SYNOPSIS"
-\fBorderly\fR \fIsupervisorspec\fR\.\.\. \-\- <progspec\.\.\.> [\-\- \.\.\.]
-.
-.SH "DESCRIPTION"
-\fBorderly\fR Provides ordered starting, supervision and stopping of a collection of processes\. \fBorderly\fR starts a list of processes in order, then monitors them with provided health check scripts\. On failure, processes are stopped and restarted in a well specified order following the specified restart strategy\. On unrecoverable errors, \fBorderly\fR itself aborts execution\.
-.
-.P
-Arrangement of orderly invocations in a tree hierarchy allows the creation of fault tolerant process supervision trees\.
-.
-.SH "SIGNALS"
-On SIGINT \fBorderly\fR sents SIGINT to all processes in reverse order, and waits for them to exit\. If the process spec has a shutdown grace period, processes are killed with SIGKILL after the shutdown grace period has elapsed\.
-.
-.P
-On SIGTERM \fBorderly\fR kills all processes in reverse order, then exits as soon as possible\. Cleanup scripts will be run in reverse order next time orderly is restarted\.
-.
-.SH "SUPERVISOR SPEC FLAGS"
-.
-.TP
-\fB\-restarts\-per\-second NUM (default=0\.1)\fR
-TODO
-.
-.TP
-\fB\-max\-restarts NUM (default=5)\fR
-TODO
-.
-.TP
-\fB\-status\-file PATH\fR:
-.
-.IP
-If specified, a file atomically updated with the current status of orderly it will contain either "STARTING", "RUNNING" or "EXITED" \.
-.
-.SH "PROCESS SPEC FLAGS"
-TODO
-.
-.SH "EXAMPLES"
+.IP "" 4
 .
 .nf
 
-$ orderly \e
-  \-restarts\-per\-second 0\.1 \e
-  \-max\-restarts 5 \e
-  \-\- \e
-  \-name redis \e
-  \-run \./start\-redis \e
-  \-post\-start \./post\-start\-redis \e
-  \-check \./check\-redis \e
-  \-cleanup \./cleanup\-redis \e
-  \-\- \e
-  \-name webapp \e
-  \-run \./start\-webapp \e
-  \-post\-start \./post\-start\-webapp
-  \-check \./check\-webapp \e
-  \-cleanup \./cleanup\-webapp
+  **orderly** [<SUPERVISOR\-FLAGS>] [ \-\- <PROCESS\-FLAGS> ]+
 .
 .fi
+.
+.IP "" 0
+.
+.SH "DESCRIPTION"
+\fBorderly\fR Provides ordered starting, supervision and stopping of a collection of processes\. \fBorderly\fR starts a list of processes in order, then monitors them with provided health check scripts\.
+.
+.P
+On failure, processes are stopped and restarted in a well specified order\. Scripts can also be provided to cleanup after a failed process (unmounting filesystems, deleting files, etc\.)\.
+.
+.P
+Arrangement of \fBorderly\fR invocations in a tree hierarchy allows the creation of fault tolerant process supervision trees\.
+.
+.SH "SUPERVISOR SPEC FLAGS"
+.
+.SS "\-max\-restarts NUM (default=5)"
+The size of the restart pool, when this pool is empty and a restart is required \fBorderly\fR aborts\. Each restart decreases the pool size by one\.
+.
+.SS "\-restarts\-per\-second NUM (default=0\.1)"
+The rate at which restarts are added into the restart pool\.
+.
+.SS "\-status\-file PATH"
+If specified, a file containing the current status of \fBorderly\fR it will contain either "STARTING", "RUNNING"\. \fBorderly\fR transitions from starting, to running after all procesess it is controlling have started successfully at least one time\. The main use for this file is for creating nested \fBorderly\fR supervision trees that start in order\.
+.
+.SS "\-check\-delay PATH (default=5)"
+The amount of time in seconds to wait between health check loops\.
+.
+.SH "PROCESS SPEC FLAGS"
+.
+.SS "\-name NAME"
+The name of the service, passed to all callbacks under the env variable as \'ORDERLY_SERVICE_NAME\'\.
+.
+.SS "\-run BIN"
+The command invoked by \fBorderly\fR to launch a supervised process\. If this program exits, it will trigger a restart\.
+.
+.SS "\-wait\-started BIN"
+An optional command invoked concurrently with the service, it should exit with a 0 exit code when this process is ready and the next process can be started\.
+.
+.SS "\-check BIN"
+An optional command invoked periodically as a health check\. If this commands times out or returns an unsuccessful exit code, a restart will be triggered\. This check is in addition to ensuring the run process has not exited\.
+.
+.SS "\-shutdown BIN"
+An optional command to cleanly shutdown the supervised process\. Is used for clean shutdown if \fBorderly\fR recieves a SIGINT signal\. If not specified, \fBorderly\fR will send SIGKILL to terminate the supervised process\.
+.
+.SS "\-clean BIN"
+An optional command to cleanup any resources the running process may have left\. If it exits with an unsuccessful exit code, a restart will be triggered\. Process cleaning should be idempotent, and always happens in reverse order to process startup\.
+.
+.SS "\-all\-commands BIN"
+Shorthand for setting all commands to the same script, in this case env variables can disambiguate the action to take\.
+.
+.SS "\-{wait\-started,check,shutdown,clean}\-timeout SECONDS (default=120)`"
+The number of seconds to wait for a given command before giving up and triggering a restart\. A negative value means no timeout\.
+.
+.SH "PROCESS SPEC ENV VARIABLES"
+The following env variables are passed to any specified process scripts\.
+.
+.SS "ORDERLY_SERVICE_NAME"
+The name of the process being managed\.
+.
+.SS "ORDERLY_ACTION"
+One of RUN, WAIT_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which action \fBorderly\fR is requesting\.
+.
+.SS "ORDERLY_RUN_PID"
+The pid of the supervised process, if it is running\.
+.
+.SH "SIGNALS"
+.
+.SS "SIGINT"
+\fBorderly\fR \fBorderly\fR shuts all processes down with the provided shutdown commands in reverse order\. If a process does not have a shutdown command, it is killed\.
+.
+.SS "SIGTERM"
+\fBorderly\fR kills all processes in reverse order, then exits as soon as possible\.
+.
+.SH "EXAMPLE"
+Given the executable service script \'sv\':
+.
+.IP "" 4
+.
+.nf
+
+  #! /usr/bin/env bash
+
+  set \-eu
+
+  p () {
+    echo "$ORDERLY_SERVICE_NAME $ORDERLY_ACTION"
+  }
+
+  case $ORDERLY_ACTION in
+    RUN)
+      p
+      exec sleep 9999
+    ;;
+    WAIT_STARTED)
+      sleep 0\.1
+      p
+    ;;
+    CHECK)
+      p
+    ;;
+    SHUTDOWN)
+      p
+      kill \-9 $ORDERLY_PID
+    ;;
+    CLEANUP)
+      p
+    ;;
+    *)
+      echo "unknown action: $ORDERLY_ACTION"
+      exit 1
+    ;;
+  esac
+.
+.fi
+.
+.IP "" 0
+.
+.P
+And the invocation:
+.
+.IP "" 4
+.
+.nf
+
+  **orderly** \-\- \e
+    \-name sv1 \-all\-commands \./sv \e
+      \-\- \e
+    \-name sv2 \-all\-commands \./sv \e
+      \-\- \e
+    \-name sv3 \-all\-commands \./sv &
+
+  pid="$!"
+  sleep 1
+  kill \-SIGINT "$pid"
+  wait
+.
+.fi
+.
+.IP "" 0
+.
+.P
+You will see output like:
+.
+.IP "" 4
+.
+.nf
+
+  2019\-03\-28 12:23:10 INFO  [orderly] (re)starting all procs\.
+  2019\-03\-28 12:23:10 INFO  [orderly] running sv3 cleanup\.
+  sv3 CLEANUP
+  2019\-03\-28 12:23:10 INFO  [orderly] running sv2 cleanup\.
+  sv2 CLEANUP
+  2019\-03\-28 12:23:10 INFO  [orderly] running sv1 cleanup\.
+  sv1 CLEANUP
+  2019\-03\-28 12:23:10 INFO  [orderly] starting sv1\.
+  sv1 RUN
+  sv1 WAIT_STARTED
+  2019\-03\-28 12:23:10 INFO  [orderly] starting sv2\.
+  sv2 RUN
+  sv2 WAIT_STARTED
+  2019\-03\-28 12:23:10 INFO  [orderly] starting sv3\.
+  sv3 RUN
+  sv3 WAIT_STARTED
+  2019\-03\-28 12:23:10 INFO  [orderly] checking sv1\.
+  sv1 CHECK
+  2019\-03\-28 12:23:10 INFO  [orderly] checking sv2\.
+  sv2 CHECK
+  2019\-03\-28 12:23:10 INFO  [orderly] checking sv3\.
+  sv3 CHECK
+  2019\-03\-28 12:23:11 INFO  [orderly] supervisor shutting down gracefully\.
+  2019\-03\-28 12:23:11 INFO  [orderly] shutting down sv3\.
+  sv3 SHUTDOWN
+  2019\-03\-28 12:23:11 INFO  [orderly] running sv3 cleanup\.
+  sv3 CLEANUP
+  2019\-03\-28 12:23:11 INFO  [orderly] shutting down sv2\.
+  sv2 SHUTDOWN
+  2019\-03\-28 12:23:11 INFO  [orderly] running sv2 cleanup\.
+  sv2 CLEANUP
+  2019\-03\-28 12:23:11 INFO  [orderly] shutting down sv1\.
+  sv1 SHUTDOWN
+  2019\-03\-28 12:23:11 INFO  [orderly] running sv1 cleanup\.
+  sv1 CLEANUP
+.
+.fi
+.
+.IP "" 0
+.
+.SH "NOTES"
+Logging facilities may be added in the future, though currently a logging process can simply be part of the process list, and can be sent input via named pipes or any other mechanism\.
 .
 .SH "COPYRIGHT"
 orderly is Copyright (C) 2019 Andrew Chambers \fIhttps://acha\.ninja/\fR

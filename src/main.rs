@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 // Rename to orderly.
 
 fn usage() {
-  println!(include_str!("../man/generated/orderly.1.txt"));
+  println!("{}", include_str!("../man/generated/orderly.1.txt"));
   std::process::exit(1);
 }
 
@@ -156,7 +156,7 @@ impl Supervisor {
   fn kill_child_and_pg(c: &mut std::process::Child) -> Result<(), SupervisorError> {
     let rc = unsafe { libc::killpg(c.id() as i32, libc::SIGKILL) };
     if rc != 0 {
-      log::warn!("WARNING - killing process group failed");
+      log::warn!("WARNING - killing process group failed.");
     }
 
     Ok(c.kill()?)
@@ -264,11 +264,11 @@ impl Supervisor {
 
     match p {
       Some(c) => {
-        log::info!("killing {}", self.spec.procs[idx].name.as_str());
+        log::info!("killing {}.", self.spec.procs[idx].name.as_str());
 
         let rc = unsafe { libc::killpg(c.id() as i32, libc::SIGKILL) };
         if rc != 0 {
-          log::warn!("WARNING - killing process group failed");
+          log::warn!("WARNING - killing process group failed.");
         }
 
         Supervisor::kill_child_and_pg(c)?;
@@ -286,7 +286,7 @@ impl Supervisor {
   fn shutdown_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
     self.check_signals()?;
 
-    log::info!("shutting down {}", self.spec.procs[idx].name.as_str());
+    log::info!("shutting down {}.", self.spec.procs[idx].name.as_str());
 
     let start_t = Instant::now();
     let deadline = Supervisor::deadline_from_float_seconds(
@@ -299,7 +299,7 @@ impl Supervisor {
       Some(ref shutdown) => match self.run_command(&shutdown.clone(), &env, deadline) {
         Ok(c) => c,
         Err(err) => {
-          log::warn!("shutdown script error: {:?}", err);
+          log::warn!("shutdown script error: {:?}.", err);
           return self.kill_proc(idx);
         }
       },
@@ -349,7 +349,7 @@ impl Supervisor {
   fn check_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
     self.check_signals()?;
 
-    log::info!("checking {}", self.spec.procs[idx].name);
+    log::info!("checking {}.", self.spec.procs[idx].name);
 
     let env = self.get_proc_script_env("CHECK", idx);
     let p = &mut self.procs[idx];
@@ -378,7 +378,7 @@ impl Supervisor {
     self.check_signals()?;
 
     {
-      log::info!("running {} cleanup", self.spec.procs[idx].name);
+      log::info!("running {} cleanup.", self.spec.procs[idx].name);
       let p = &self.procs[idx];
 
       match p {
@@ -400,7 +400,7 @@ impl Supervisor {
   fn start_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
     self.check_signals()?;
 
-    log::info!("starting {}", self.spec.procs[idx].name);
+    log::info!("starting {}.", self.spec.procs[idx].name);
 
     let env = self.get_proc_script_env("RUN", idx);
     let s = self.spec.procs.get(idx).unwrap();
@@ -433,7 +433,7 @@ impl Supervisor {
   fn kill_all_procs_ignore_errors(&mut self) {
     for i in (0..self.procs.len()).rev() {
       if let Err(e) = self.kill_proc(i) {
-        log::warn!("error while killing proc: {:?}", e);
+        log::warn!("error while killing proc: {:?}.", e);
       }
     }
   }
@@ -507,14 +507,14 @@ impl Supervisor {
     loop {
       match self.supervise() {
         e @ SupervisorError::IOError(_) | e @ SupervisorError::ProcFailed => {
-          log::warn!("supervisor encountered an error: {:?}", e);
+          log::warn!("supervisor encountered an error: {:?}.", e);
         }
         SupervisorError::Shutdown => {
-          log::info!("supervisor shutting down gracefully");
+          log::info!("supervisor shutting down gracefully.");
           match self.shutdown_all_procs() {
             Ok(()) => (),
             Err(e) => {
-              log::error!("unable shutdown child procs, killing instead: {:?}", e);
+              log::error!("unable shutdown child procs, killing instead: {:?}.", e);
               self.kill_all_procs_ignore_errors();
             }
           }
@@ -523,7 +523,7 @@ impl Supervisor {
         }
         e @ SupervisorError::Terminated | e @ SupervisorError::RestartLimitReached => {
           log::error!(
-            "supervisor unable to continue: {:?} - shutting down brutally",
+            "supervisor unable to continue: {:?} - shutting down brutally.",
             e
           );
           self.kill_all_procs_ignore_errors();
@@ -535,7 +535,7 @@ impl Supervisor {
 
     if let Some(ref path) = self.spec.status_file {
       if let Err(err) = std::fs::remove_file(path) {
-        log::warn!("error removing status file: {}", err);
+        log::warn!("error removing status file: {}.", err);
       }
     }
 
