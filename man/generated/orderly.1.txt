@@ -3,7 +3,7 @@ ORDERLY(1)                                                                      
 NAME
        ORDERLY - run and supervise processes
 
-             **orderly** [<SUPERVISOR-FLAGS>] [ -- <PROCESS-FLAGS> ]+
+             orderly [<SUPERVISOR-FLAGS>] [ -- <PROCESS-FLAGS> ]+
 
 DESCRIPTION
        orderly  Provides ordered starting, supervision and stopping of a collection of processes.
@@ -14,7 +14,7 @@ DESCRIPTION
        also be provided to cleanup after  a  failed  process  (unmounting  filesystems,  deleting
        files, etc.).
 
-       Arrangement of orderly invocations in a tree hierarchy allows the creation of fault toler‐
+       Arrangement of orderly invocations in a tree hierarchy allows the creation of fault toler-
        ant process supervision trees.
 
 SUPERVISOR SPEC FLAGS
@@ -36,7 +36,7 @@ SUPERVISOR SPEC FLAGS
 
 PROCESS SPEC FLAGS
    -name NAME
-       The name of the service, passed to all callbacks under the env variable  as  'ORDERLY_SER‐
+       The name of the service, passed to all callbacks under the env variable  as  'ORDERLY_SER-
        VICE_NAME'.
 
    -run BIN
@@ -54,7 +54,7 @@ PROCESS SPEC FLAGS
 
    -shutdown BIN
        An optional command to cleanly shutdown the supervised process. Is used for clean shutdown
-       if orderly recieves a SIGINT signal. If not specified, orderly will send SIGKILL to termi‐
+       if orderly recieves a SIGINT signal. If not specified, orderly will send SIGKILL to termi-
        nate the supervised process.
 
    -clean BIN
@@ -63,7 +63,7 @@ PROCESS SPEC FLAGS
        be idempotent, and always happens in reverse order to process startup.
 
    -all-commands BIN
-       Shorthand for setting all commands to the same script, in this case env variables can dis‐
+       Shorthand for setting all commands to the same script, in this case env variables can dis-
        ambiguate the action to take.
 
    -{wait-started,check,shutdown,clean}-timeout SECONDS (default=120)`
@@ -130,7 +130,7 @@ EXAMPLE
 
        And the invocation:
 
-             **orderly** -- \
+             orderly -- \
                -name sv1 -all-commands ./sv \
                  -- \
                -name sv2 -all-commands ./sv \
@@ -181,8 +181,8 @@ EXAMPLE
              sv1 CLEANUP
 
 NOTES
-       Logging facilities may be added in the future, though currently a logging process can sim‐
-       ply be part of the process list, and can be sent input via named pipes or any other mecha‐
+       Logging facilities may be added in the future, though currently a logging process can sim-
+       ply be part of the process list, and can be sent input via named pipes or any other mecha-
        nism.
 
 COPYRIGHT

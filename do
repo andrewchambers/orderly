@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell --pure -i bash -p git cargo pandoc ronn
+#! nix-shell --pure -i bash -p man utillinux git cargo pandoc ronn
 
 set -eux
 
@@ -13,12 +13,17 @@ case "$target" in
     echo "Read this script to get a list of valid commands."
   ;;
   doc)
+    # format docs
     pandoc -f gfm -t gfm README.md > README.md.tmp
     mv README.md.tmp README.md
+
+    pandoc -f gfm -t gfm ./example/README.md > ./example/README.md.tmp
+    mv ./example/README.md.tmp ./example/README.md
     
     pandoc -f gfm -t gfm man/orderly.1.md > man/orderly.1.md.tmp
     mv man/orderly.1.md.tmp man/orderly.1.md
-   
+    
+    # generate man pages.
     rm -rf ./man/generated
     mkdir -p ./man/generated
     cp man/orderly.1.md ./man/generated/

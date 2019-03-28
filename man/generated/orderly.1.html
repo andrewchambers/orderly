@@ -75,7 +75,7 @@
   <code>ORDERLY</code> - <span class="man-whatis">run and supervise processes</span>
 </p>
 
-<pre><code class="">  **orderly** [&lt;SUPERVISOR-FLAGS>] [ -- &lt;PROCESS-FLAGS> ]+
+<pre><code class="">  orderly [&lt;SUPERVISOR-FLAGS>] [ -- &lt;PROCESS-FLAGS> ]+
 </code></pre>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
@@ -241,7 +241,7 @@ occured with no errors.</p>
 
 <p>And the invocation:</p>
 
-<pre><code class="">  **orderly** -- \
+<pre><code class="">  orderly -- \
     -name sv1 -all-commands ./sv \
       -- \
     -name sv2 -all-commands ./sv \

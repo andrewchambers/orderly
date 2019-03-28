@@ -18,6 +18,8 @@ $ orderly -max-restart-tokens 2 -restart-tokens-per-second 0.1 -- \
   -name website -run ./run-website -check ./health-check-website -cleanup ./website-cleanup 
 ```
 
+For a full featured example with code, check the example directory.
+
 ## Building from source
 
 [![builds.sr.ht
