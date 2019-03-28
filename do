@@ -35,6 +35,7 @@ case "$target" in
   git-push)
     git push origin
     git push github
+  ;;
   *)
     echo "Don't know how to do '$target'"
     exit 1
