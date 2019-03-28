@@ -30,6 +30,13 @@ most people after cloning the git repository.
 
 Binary packages are not yet provided.
 
+# Contact
+
+Try the [mailing list](https://lists.sr.ht/~ach/orderly-dev)
+
+Or create a [github
+issue](https://github.com/andrewchambers/orderly/issues)
+
 # Sponsors
 
 This project was sponsored by [backupbox.io](https://backupbox.io)

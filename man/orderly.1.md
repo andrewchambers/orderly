@@ -1,4 +1,4 @@
-# ORDERLY(1) -- run and supervise processes
+# ORDERLY -- run and supervise processes
 
 ``` 
   **orderly** [<SUPERVISOR-FLAGS>] [ -- <PROCESS-FLAGS> ]+
