@@ -169,7 +169,7 @@ Given the executable service script 'sv':
 And the invocation:
 
 ``` 
-  **orderly** -- \
+  orderly -- \
     -name sv1 -all-commands ./sv \
       -- \
     -name sv2 -all-commands ./sv \
