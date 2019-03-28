@@ -4,7 +4,7 @@
 dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$dir"
 
-set -eux
+set -eu
 
 orderly -check-delay 60 -- \
   -name sv1 -all-commands ./sv \
