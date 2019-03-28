@@ -5,6 +5,5 @@ sources:
   - https://git.sr.ht/~ach/orderly
 tasks:
   - test: |
-      echo $NIX_PATH
       cd orderly
-      ./ci/run_ci
+      ./do test

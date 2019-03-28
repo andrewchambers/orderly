@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p pandoc ronn
+#! nix-shell --pure -i bash -p git cargo pandoc ronn
 
 set -eux
 

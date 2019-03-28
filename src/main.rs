@@ -78,7 +78,7 @@ impl RateLimiter {
   fn add_tokens(&mut self) {
     let now = std::time::Instant::now();
     let duration = now.duration_since(self.last_add);
-    let millis = duration.as_millis();
+    let millis = 1000 * duration.as_secs() + duration.subsec_millis() as u64;
     let new_tokens = ((millis as f64) * self.tokens_per_sec) / 1000.0;
     self.tokens += new_tokens;
     if self.tokens > self.capacity {
