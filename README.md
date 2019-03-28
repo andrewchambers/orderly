@@ -1,6 +1,6 @@
 # Orderly
 
-**orderly** is tool that provides ordered and controlled start, stop,
+**orderly** is a tool that provides ordered and controlled start, stop,
 restart and cleanup of a group of processes. It aims to be a building
 block for reliable servers/services/containers.
 
