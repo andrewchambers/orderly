@@ -10,6 +10,27 @@ propagrate when process restarts rate exceeds a specified limit.
 
 If this interests you, you can read the manual [here](man/orderly.1.md).
 
+## Rationale
+
+**orderly** was originally made to support reliable recovery of
+inter-dependant services after failure on a runit based linux system. In
+this configuration orderly runs beneath runit, providing grouping, left
+to right start and right to left cleanup that runit lacks. This allows
+for things like crashed fuse file systems to be cleanly unmounted and
+recreated, where the unordered restarts of runit cause problems.
+
+**orderly** also addresses some quality of life problems when developing
+a group of servers. Generally when developing 'microservice' style
+projects you are stopping and starting many processes that depend on
+eachother. **orderly** makes this work easier, as a single terminal
+window + ctrl+c is all that is needed to reliably kill/restart all your
+services.
+
+More complicated init systems like systemd support some of this
+functionality, but not for these use cases, and only for systems that go
+'all-in' with systemd. The project author is a fan of the openbsd
+operating system for example, which does not even support systemd.
+
 ## Example
 
 ``` 
@@ -32,13 +53,13 @@ most people after cloning the git repository.
 
 Binary packages are not yet provided.
 
-# Contact
+## Contact
 
 Try the [mailing list](https://lists.sr.ht/~ach/orderly-dev)
 
 Or create a [github
 issue](https://github.com/andrewchambers/orderly/issues)
 
-# Sponsors
+## Sponsors
 
 This project was sponsored by [backupbox.io](https://backupbox.io)
