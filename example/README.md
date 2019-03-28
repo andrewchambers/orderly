@@ -1,10 +1,10 @@
 # Example
 
-This is a simple example showing how you might perform:
+This is a simple example showing how you might
 
-  - Running collecting and rotating logs.
-  - Running redis.
-  - Running a simple (but fake) web server.
+  - Collect and rotate logs.
+  - Run redis.
+  - Running a simple web server.
 
 The example depends on svlogd from runit, go and redis.
 
