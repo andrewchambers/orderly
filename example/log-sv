@@ -1,0 +1,31 @@
+#! /usr/bin/env bash
+
+set -eu
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+cd "$dir"
+
+case $ORDERLY_ACTION in
+  RUN)
+    mkdir -p "./logs/$ORDERLY_SERVICE_NAME"
+    mkfifo "./logs/$ORDERLY_SERVICE_NAME.pipe"
+    exec svlogd "./logs/$ORDERLY_SERVICE_NAME" < "./logs/$ORDERLY_SERVICE_NAME.pipe"
+  ;;
+  WAIT_STARTED)
+    sleep 0.2
+  ;;
+  CHECK)
+    true
+  ;;
+  SHUTDOWN)
+    kill -SIGTERM "$ORDERLY_PID"
+  ;;
+  CLEANUP)
+    rm -f "./logs/$ORDERLY_SERVICE_NAME.pipe"
+  ;;
+  *)
+    echo "unknown action: $ORDERLY_ACTION"
+    exit 1
+  ;;
+esac

@@ -1,0 +1,40 @@
+#! /usr/bin/env bash
+
+set -eu
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+cd "$dir"
+
+case $ORDERLY_ACTION in
+  RUN)
+    exec redis-server > ./logs/redis-logs.pipe 2>&1
+  ;;
+  WAIT_STARTED)
+    n=0
+    while test "$n" -lt "100"
+    do
+      sleep 0.2
+
+      if redis-cli ping
+      then
+        exit 0
+      fi
+      n=$((n + 1))
+    done
+    exit 1
+  ;;
+  CHECK)
+    redis-cli ping
+  ;;
+  SHUTDOWN)
+    redis-cli shutdown
+  ;;
+  CLEANUP)
+    true
+  ;;
+  *)
+    echo "unknown action: $ORDERLY_ACTION"
+    exit 1
+  ;;
+esac

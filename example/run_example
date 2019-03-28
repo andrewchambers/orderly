@@ -1,0 +1,21 @@
+#! /usr/bin/env bash
+
+set -eu
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+cd "$dir"
+
+exec orderly  \
+  -- \
+  -name redis-logs \
+  -all-commands ./log-sv \
+  -- \
+  -name web-logs \
+  -all-commands ./log-sv \
+  -- \
+  -name redis \
+  -all-commands ./redis \
+  -- \
+  -name web \
+  -all-commands ./fake-web

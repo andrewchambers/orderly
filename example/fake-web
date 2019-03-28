@@ -1,0 +1,40 @@
+#! /usr/bin/env bash
+
+set -eu
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+cd "$dir"
+
+case $ORDERLY_ACTION in
+  RUN)
+    exec go run server.go > ./logs/web-logs.pipe 2>&1
+  ;;
+  WAIT_STARTED)
+    n=0
+    while test "$n" -lt "100"
+    do
+      sleep 0.2
+      if curl -s http://127.0.0.1:8000 > /dev/null
+      then
+        exit 0
+      fi
+      n=$((n + 1))
+    done
+    exit 1
+  ;;
+  CHECK)
+    echo "checking index is up."
+    curl -s http://127.0.0.1:8000 > /dev/null
+  ;;
+  SHUTDOWN)
+    kill -9 "$ORDERLY_PID"
+  ;;
+  CLEANUP)
+    true
+  ;;
+  *)
+    echo "unknown action: $ORDERLY_ACTION"
+    exit 1
+  ;;
+esac
