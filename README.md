@@ -1,10 +1,12 @@
 # Orderly
 
 **orderly** is tool that provides ordered and controlled start, stop,
-restart and cleanup of a group of processes. it provides. **orderly**
-draws inspiration from erlang supervisor trees.
+restart and cleanup of a group of processes. It aims to be a building
+block for reliable servers/services/containers.
 
-It aims to be a building block for reliable servers/services/containers.
+orderly draws inspiration from erlang supervisor trees, It provides
+mechanisms to build a tree of supervised processes, and failure can
+propagrate when process restarts rate exceeds a specified limit.
 
 If this interests you, you can read the manual [here](man/orderly.1.md).
 

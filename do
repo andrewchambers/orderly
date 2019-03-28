@@ -12,13 +12,13 @@ case "$target" in
   default)
     echo "Read this script to get a list of valid commands."
   ;;
-  format-doc)
-    pandoc -f gfm -t gfm man/orderly.1.md > man/orderly.1.md.tmp
-    mv man/orderly.1.md.tmp man/orderly.1.md
+  doc)
     pandoc -f gfm -t gfm README.md > README.md.tmp
     mv README.md.tmp README.md
-  ;;
-  doc)
+    
+    pandoc -f gfm -t gfm man/orderly.1.md > man/orderly.1.md.tmp
+    mv man/orderly.1.md.tmp man/orderly.1.md
+   
     rm -rf ./man/generated
     mkdir -p ./man/generated
     cp man/orderly.1.md ./man/generated/
