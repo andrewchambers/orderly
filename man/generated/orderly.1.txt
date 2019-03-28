@@ -18,11 +18,11 @@ DESCRIPTION
        ant process supervision trees.
 
 SUPERVISOR SPEC FLAGS
-   -max-restarts NUM (default=5)
+   -max-restart-tokens NUM (default=5)
        The size of the restart pool, when this pool is empty and a restart  is  required  orderly
        aborts. Each restart decreases the pool size by one.
 
-   -restarts-per-second NUM (default=0.1)
+   -restart-tokens-per-second NUM (default=0.1)
        The rate at which restarts are added into the restart pool.
 
    -status-file PATH

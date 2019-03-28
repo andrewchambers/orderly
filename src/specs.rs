@@ -133,8 +133,8 @@ pub struct ProcSpec {
 #[derive(Debug)]
 pub struct SupervisorSpecBuilder {
   status_file: Option<String>,
-  pub restarts_per_second: f64,
-  pub max_restarts: f64,
+  pub restart_tokens_per_second: f64,
+  pub max_restart_tokens: f64,
   pub check_delay_seconds: f64,
   procs: Vec<ProcSpec>,
 }
@@ -142,29 +142,29 @@ pub struct SupervisorSpecBuilder {
 #[derive(Debug)]
 pub struct SupervisorSpec {
   pub status_file: Option<String>,
-  pub restarts_per_second: f64,
+  pub restart_tokens_per_second: f64,
   pub check_delay_seconds: f64,
-  pub max_restarts: f64,
+  pub max_restart_tokens: f64,
   pub procs: Vec<ProcSpec>,
 }
 
 impl SupervisorSpecBuilder {
   pub fn new() -> Self {
     SupervisorSpecBuilder {
-      restarts_per_second: 0.1,
-      max_restarts: 5.0,
+      restart_tokens_per_second: 0.1,
+      max_restart_tokens: 5.0,
       check_delay_seconds: 5.0,
       status_file: None,
       procs: vec![],
     }
   }
 
-  pub fn set_restarts_per_second(&mut self, rps: f64) {
-    self.restarts_per_second = rps;
+  pub fn set_restart_tokens_per_second(&mut self, rps: f64) {
+    self.restart_tokens_per_second = rps;
   }
 
-  pub fn set_max_restarts(&mut self, max_restarts: f64) {
-    self.max_restarts = max_restarts;
+  pub fn set_max_restart_tokens(&mut self, max_restart_tokens: f64) {
+    self.max_restart_tokens = max_restart_tokens;
   }
 
   pub fn set_check_delay_seconds(&mut self, check_delay_seconds: f64) {
@@ -181,9 +181,9 @@ impl SupervisorSpecBuilder {
 
   pub fn build(self) -> Result<SupervisorSpec, SpecError> {
     let mut spec = SupervisorSpec {
-      restarts_per_second: self.restarts_per_second,
+      restart_tokens_per_second: self.restart_tokens_per_second,
       check_delay_seconds: self.check_delay_seconds,
-      max_restarts: self.max_restarts,
+      max_restart_tokens: self.max_restart_tokens,
       status_file: self.status_file,
       procs: vec![],
     };

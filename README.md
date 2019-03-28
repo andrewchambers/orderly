@@ -13,7 +13,7 @@ If this interests you, you can read the manual [here](man/orderly.1.md).
 ## Example
 
 ``` 
-$ orderly -max-restarts 2 -restarts-per-second 0.1 -- \
+$ orderly -max-restart-tokens 2 -restart-tokens-per-second 0.1 -- \
   -name redis   -run ./run-redis -wait-started ./wait-redis  -- \
   -name website -run ./run-website -check ./health-check-website -cleanup ./website-cleanup 
 ```

@@ -95,7 +95,7 @@ impl Supervisor {
       procs.push(None);
     }
 
-    let limiter = RateLimiter::new(spec.max_restarts, spec.restarts_per_second);
+    let limiter = RateLimiter::new(spec.max_restart_tokens, spec.restart_tokens_per_second);
 
     Supervisor {
       spec: spec,
@@ -556,16 +556,16 @@ fn main() {
 
   while arg_idx < args.len() {
     match args[arg_idx].as_ref() {
-      "-restarts-per-second" => {
+      "-restart-tokens-per-second" => {
         let rps = args
           .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-restarts-per-second expects a number."));
+          .unwrap_or_else(|| die("-restart-tokens-per-second expects a number."));
 
         let rps = rps
           .parse::<f64>()
           .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", rps).as_ref()));
 
-        supervisor_spec_builder.set_restarts_per_second(rps);
+        supervisor_spec_builder.set_restart_tokens_per_second(rps);
 
         arg_idx += 2;
       }
@@ -582,14 +582,14 @@ fn main() {
 
         arg_idx += 2;
       }
-      "-max-restarts" => {
+      "-max-restart-tokens" => {
         let max_restarts = args
           .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-max-restarts expected a number number."));
+          .unwrap_or_else(|| die("-max-restart-tokens expected a number number."));
         let max_restarts = max_restarts.parse::<f64>().unwrap_or_else(|_e| {
           die(format!("{} is not a valid unsigned number.", max_restarts).as_ref())
         });
-        supervisor_spec_builder.set_max_restarts(max_restarts);
+        supervisor_spec_builder.set_max_restart_tokens(max_restarts);
         arg_idx += 2;
       }
       "-status-file" => {

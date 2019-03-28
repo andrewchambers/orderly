@@ -93,13 +93,13 @@ creation of fault tolerant process supervision trees.</p>
 
 <h2 id="SUPERVISOR-SPEC-FLAGS">SUPERVISOR SPEC FLAGS</h2>
 
-<h3 id="-max-restarts-NUM-default-5-">-max-restarts NUM (default=5)</h3>
+<h3 id="-max-restart-tokens-NUM-default-5-">-max-restart-tokens NUM (default=5)</h3>
 
 <p>The size of the restart pool, when this pool is empty and a restart is
 required <strong>orderly</strong> aborts. Each restart decreases the pool size by
 one.</p>
 
-<h3 id="-restarts-per-second-NUM-default-0-1-">-restarts-per-second NUM (default=0.1)</h3>
+<h3 id="-restart-tokens-per-second-NUM-default-0-1-">-restart-tokens-per-second NUM (default=0.1)</h3>
 
 <p>The rate at which restarts are added into the restart pool.</p>
 
