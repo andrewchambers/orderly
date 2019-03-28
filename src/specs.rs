@@ -13,6 +13,7 @@ pub struct ProcSpecBuilder {
   check_timeout_seconds: Option<f64>,
   shutdown: Option<String>,
   shutdown_timeout_seconds: Option<f64>,
+  terminate_timeout_seconds: Option<f64>,
   cleanup: Option<String>,
   cleanup_timeout_seconds: Option<f64>,
 }
@@ -30,6 +31,7 @@ impl ProcSpecBuilder {
       shutdown_timeout_seconds: Some(60.0),
       cleanup: None,
       cleanup_timeout_seconds: Some(60.0),
+      terminate_timeout_seconds: Some(10.0),
     }
   }
 
@@ -81,6 +83,14 @@ impl ProcSpecBuilder {
     }
   }
 
+  pub fn set_terminate_timeout_seconds(&mut self, timeout_seconds: f64) {
+    self.terminate_timeout_seconds = if timeout_seconds > 0.0 {
+      Some(timeout_seconds)
+    } else {
+      None
+    }
+  }
+
   pub fn set_cleanup_timeout_seconds(&mut self, timeout_seconds: f64) {
     self.cleanup_timeout_seconds = if timeout_seconds > 0.0 {
       Some(timeout_seconds)
@@ -97,6 +107,7 @@ impl ProcSpecBuilder {
       check_timeout_seconds: self.check_timeout_seconds,
       shutdown: self.shutdown,
       shutdown_timeout_seconds: self.shutdown_timeout_seconds,
+      terminate_timeout_seconds: self.terminate_timeout_seconds,
       cleanup: self.cleanup,
       cleanup_timeout_seconds: self.cleanup_timeout_seconds,
       wait_started: self.wait_started,
@@ -126,6 +137,7 @@ pub struct ProcSpec {
   pub check_timeout_seconds: Option<f64>,
   pub shutdown: Option<String>,
   pub shutdown_timeout_seconds: Option<f64>,
+  pub terminate_timeout_seconds: Option<f64>,
   pub cleanup: Option<String>,
   pub cleanup_timeout_seconds: Option<f64>,
 }

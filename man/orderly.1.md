@@ -92,6 +92,13 @@ take.
 The number of seconds to wait for a given command before giving up and
 triggering a restart. A negative value means no timeout.
 
+### \-terminate-timeout SECONDS (default=10)\`
+
+When terminating a child due to sigterm, or an unrecoverable error,
+first orderly will send a SIGTERM to the child. If the child does not
+exist after this timeout, then a SIGKILL is sent instead. A negative
+value means no timeout.
+
 ## PROCESS SPEC ENV VARIABLES
 
 The following env variables are passed to any specified process scripts.

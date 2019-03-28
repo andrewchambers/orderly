@@ -40,6 +40,7 @@ enum SupervisorError {
   Terminated,
   RestartLimitReached,
   ProcFailed,
+  UnkillableChild,
 }
 
 impl From<std::io::Error> for SupervisorError {
@@ -150,13 +151,51 @@ impl Supervisor {
     Ok(())
   }
 
-  fn kill_child_and_pg(c: &mut std::process::Child) -> Result<(), SupervisorError> {
-    let rc = unsafe { libc::killpg(c.id() as i32, libc::SIGKILL) };
+  fn kill_child_tree(
+    c: &mut std::process::Child,
+    deadline: Option<Instant>,
+  ) -> Result<(), SupervisorError> {
+    // We busy wait here as it is simpler, if we are killing the process
+    // the supervisor has work to do anyway, so it doesn't waste that much cpu.
+
+    // First try a SIGTERM, let the process do whatever cleanup it needs to do.
+
+    let rc = unsafe { libc::kill(-(c.id() as i32), libc::SIGTERM) };
     if rc != 0 {
-      log::warn!("WARNING - killing process group failed.");
+      log::warn!("sending SIGTERM to process group failed.");
     }
 
-    Ok(c.kill()?)
+    loop {
+      if let Some(deadline) = deadline {
+        if Instant::now() >= deadline {
+          break;
+        }
+      }
+      match c.try_wait() {
+        Err(_) => break, /* Go straight to kill */
+        Ok(None) => (),
+        Ok(Some(_)) => return Ok(()),
+      }
+      std::thread::sleep(Duration::from_millis(10));
+    }
+
+    log::warn!("child did not respond to SIGTERM, trying SIGKILL.");
+
+    let rc = unsafe { libc::kill(-(c.id() as i32), libc::SIGKILL) };
+    if rc != 0 {
+      log::warn!("killing process group failed.");
+    }
+
+    for _ in 0..1000 {
+      match c.try_wait() {
+        Err(_) => (),
+        Ok(None) => (),
+        Ok(_) => return Ok(()),
+      }
+      std::thread::sleep(Duration::from_millis(10));
+    }
+
+    Err(SupervisorError::UnkillableChild)
   }
 
   fn spawn_child(
@@ -214,7 +253,7 @@ impl Supervisor {
       if let Some(deadline) = deadline {
         let now = Instant::now();
         if now > deadline {
-          Supervisor::kill_child_and_pg(&mut c)?;
+          Supervisor::kill_child_tree(&mut c, Some(now.add(Duration::from_secs(10))))?;
           return Err(SupervisorError::ProcFailed);
         }
       }
@@ -263,13 +302,13 @@ impl Supervisor {
       Some(c) => {
         log::info!("killing {}.", self.spec.procs[idx].name.as_str());
 
-        let rc = unsafe { libc::killpg(c.id() as i32, libc::SIGKILL) };
-        if rc != 0 {
-          log::warn!("WARNING - killing process group failed.");
-        }
-
-        Supervisor::kill_child_and_pg(c)?;
-        c.wait()?;
+        Supervisor::kill_child_tree(
+          c,
+          Supervisor::deadline_from_float_seconds(
+            Instant::now(),
+            self.spec.procs[idx].terminate_timeout_seconds,
+          ),
+        )?;
         *p = None;
       }
       None => (),
@@ -518,7 +557,9 @@ impl Supervisor {
           rc = 0;
           break;
         }
-        e @ SupervisorError::Terminated | e @ SupervisorError::RestartLimitReached => {
+        e @ SupervisorError::Terminated
+        | e @ SupervisorError::RestartLimitReached
+        | e @ SupervisorError::UnkillableChild => {
           log::error!(
             "supervisor unable to continue: {:?} - shutting down brutally.",
             e
@@ -542,6 +583,7 @@ impl Supervisor {
 
 fn main() {
   simple_logger::init().unwrap();
+
   let args: Vec<String> = std::env::args().collect();
   let mut arg_idx = 1;
 
@@ -702,6 +744,19 @@ fn main() {
           .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", shutdown_timeout).as_ref()));
 
         proc_spec_builder.set_shutdown_timeout_seconds(shutdown_timeout);
+
+        arg_idx += 2;
+      }
+      "-terminate-timeout" => {
+        let terminate_timeout = args
+          .get(arg_idx + 1)
+          .unwrap_or_else(|| die("-terminate-timeout expects a number."));
+
+        let terminate_timeout = terminate_timeout
+          .parse::<f64>()
+          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", terminate_timeout).as_ref()));
+
+        proc_spec_builder.set_terminate_timeout_seconds(terminate_timeout);
 
         arg_idx += 2;
       }

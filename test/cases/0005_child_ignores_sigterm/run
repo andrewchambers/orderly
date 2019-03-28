@@ -1,0 +1,24 @@
+#! /usr/bin/env bash
+
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd "$dir"
+
+set -eux
+
+start="$(date +%s)"
+
+timeout 60 orderly -- \
+  -name sv -run ./sv -terminate-timeout 3 > test.out &
+
+pid="$!"
+sleep 1
+kill -SIGINT "$pid"
+wait
+
+end="$(date +%s)"
+test_duration=$((end - start))
+
+test "$test_duration" -gt 2
+test "$test_duration" -lt 6
+
