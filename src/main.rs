@@ -822,6 +822,12 @@ fn main() {
     }
   });
 
+  if std::process::id() == 1 {
+    // https://core.suckless.org/sinit/ does the child reaping job, that
+    // can easily launch orderly.
+    die(format!("running as pid 1 is not supported.").as_ref());
+  }
+
   let mut supervisor = Supervisor::new(spec, sigrx);
   supervisor.supervise_forever();
 }
