@@ -3,9 +3,6 @@ use std::ops::Add;
 use std::os::unix::process::CommandExt;
 use std::time::{Duration, Instant};
 
-// TODO:
-// Rename to orderly.
-
 fn usage() {
   println!("{}", include_str!("../man/generated/orderly.1.txt"));
   std::process::exit(1);
