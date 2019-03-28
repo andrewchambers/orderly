@@ -28,7 +28,7 @@ case $ORDERLY_ACTION in
     curl -s http://127.0.0.1:8000 > /dev/null
   ;;
   SHUTDOWN)
-    kill -9 "$ORDERLY_PID"
+    kill -SIGTERM "$ORDERLY_RUN_PID"
   ;;
   CLEANUP)
     true

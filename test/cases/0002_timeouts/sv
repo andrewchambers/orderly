@@ -25,7 +25,7 @@ case $ORDERLY_ACTION in
       echo "sv SHUTDOWN NOOP"
       exit 0 # skip timeout below, but do nothing so we should still timeout.
     else
-      kill -9 $ORDERLY_PID
+      kill -9 $ORDERLY_RUN_PID
     fi
   ;;
   CLEANUP)

@@ -287,7 +287,7 @@ impl Supervisor {
     ));
 
     if let Some(c) = &self.procs[idx] {
-      env.push((String::from("ORDERLY_PID"), format!("{}", c.id())));
+      env.push((String::from("ORDERLY_RUN_PID"), format!("{}", c.id())));
     }
 
     env

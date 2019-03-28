@@ -19,7 +19,7 @@ case $ORDERLY_ACTION in
     true
   ;;
   SHUTDOWN)
-    kill -SIGTERM "$ORDERLY_PID"
+    kill -SIGTERM "$ORDERLY_RUN_PID"
   ;;
   CLEANUP)
     rm -f "./logs/$ORDERLY_SERVICE_NAME.pipe"

@@ -161,7 +161,7 @@ Given the executable service script 'sv':
     ;;
     SHUTDOWN)
       p
-      kill -9 $ORDERLY_PID
+      kill -9 $ORDERLY_RUN_PID
     ;;
     CLEANUP)
       p
