@@ -1,7 +1,7 @@
 # ORDERLY -- run and supervise processes
 
 ``` 
-  **orderly** [<SUPERVISOR-FLAGS>] [ -- <PROCESS-FLAGS> ]+
+  orderly [<SUPERVISOR-FLAGS>] [ -- <PROCESS-FLAGS> ]+
 ```
 
 ## DESCRIPTION
