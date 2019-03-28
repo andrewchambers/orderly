@@ -105,11 +105,12 @@ one.</p>
 
 <h3 id="-status-file-PATH">-status-file PATH</h3>
 
-<p>If specified, a file containing the current status of <strong>orderly</strong> it
-will contain either "STARTING", "RUNNING". <strong>orderly</strong> transitions from
-starting, to running after all procesess it is controlling have started
-successfully at least one time. The main use for this file is for
-creating nested <strong>orderly</strong> supervision trees that start in order.</p>
+<p>If specified, a file to be written containing the current status of
+<strong>orderly</strong>. The file will contain either "STARTING", "RUNNING".
+<strong>orderly</strong> transitions from starting, to running after all procesess it
+is controlling have started successfully at least one time. The main use
+for this file is for creating nested <strong>orderly</strong> supervision trees that
+start in order.</p>
 
 <h3 id="-check-delay-PATH-default-5-">-check-delay PATH (default=5)</h3>
 
@@ -186,14 +187,19 @@ action <strong>orderly</strong> is requesting.</p>
 
 <h3 id="SIGINT">SIGINT</h3>
 
-<p><strong>orderly</strong> <strong>orderly</strong> shuts all processes down with the provided
-shutdown commands in reverse order. If a process does not have a
-shutdown command, it is killed.</p>
+<p><strong>orderly</strong> shuts all processes down with the provided shutdown commands
+in reverse order. If a process does not have a shutdown command, it is
+killed.</p>
 
 <h3 id="SIGTERM">SIGTERM</h3>
 
 <p><strong>orderly</strong> kills all processes in reverse order, then exits as soon as
 possible.</p>
+
+<h1>EXIT CODE</h1>
+
+<p><strong>orderly</strong> exists with a zero exit code only if shutdown after a SIGINT
+occured with no errors.</p>
 
 <h2 id="EXAMPLE">EXAMPLE</h2>
 

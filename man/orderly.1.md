@@ -31,11 +31,12 @@ The rate at which restarts are added into the restart pool.
 
 ### \-status-file PATH
 
-If specified, a file containing the current status of **orderly** it
-will contain either "STARTING", "RUNNING". **orderly** transitions from
-starting, to running after all procesess it is controlling have started
-successfully at least one time. The main use for this file is for
-creating nested **orderly** supervision trees that start in order.
+If specified, a file to be written containing the current status of
+**orderly**. The file will contain either "STARTING", "RUNNING".
+**orderly** transitions from starting, to running after all procesess it
+is controlling have started successfully at least one time. The main use
+for this file is for creating nested **orderly** supervision trees that
+start in order.
 
 ### \-check-delay PATH (default=5)
 
@@ -112,14 +113,19 @@ The pid of the supervised process, if it is running.
 
 ### SIGINT
 
-**orderly** **orderly** shuts all processes down with the provided
-shutdown commands in reverse order. If a process does not have a
-shutdown command, it is killed.
+**orderly** shuts all processes down with the provided shutdown commands
+in reverse order. If a process does not have a shutdown command, it is
+killed.
 
 ### SIGTERM
 
 **orderly** kills all processes in reverse order, then exits as soon as
 possible.
+
+# EXIT CODE
+
+**orderly** exists with a zero exit code only if shutdown after a SIGINT
+occured with no errors.
 
 ## EXAMPLE
 
