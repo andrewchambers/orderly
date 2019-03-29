@@ -59,44 +59,32 @@ impl ProcSpecBuilder {
     self.shutdown = Some(shutdown)
   }
 
-  pub fn set_wait_started_timeout_seconds(&mut self, timeout_seconds: f64) {
-    self.wait_started_timeout_seconds = if timeout_seconds > 0.0 {
+  fn set_optional_timeout(v: &mut Option<f64>, timeout_seconds: f64) {
+    *v = if timeout_seconds > 0.0 {
       Some(timeout_seconds)
     } else {
       None
     }
+  }
+
+  pub fn set_wait_started_timeout_seconds(&mut self, timeout_seconds: f64) {
+    ProcSpecBuilder::set_optional_timeout(&mut self.wait_started_timeout_seconds, timeout_seconds)
   }
 
   pub fn set_check_timeout_seconds(&mut self, timeout_seconds: f64) {
-    self.check_timeout_seconds = if timeout_seconds > 0.0 {
-      Some(timeout_seconds)
-    } else {
-      None
-    }
+    ProcSpecBuilder::set_optional_timeout(&mut self.check_timeout_seconds, timeout_seconds)
   }
 
   pub fn set_shutdown_timeout_seconds(&mut self, timeout_seconds: f64) {
-    self.shutdown_timeout_seconds = if timeout_seconds > 0.0 {
-      Some(timeout_seconds)
-    } else {
-      None
-    }
+    ProcSpecBuilder::set_optional_timeout(&mut self.shutdown_timeout_seconds, timeout_seconds)
   }
 
   pub fn set_terminate_timeout_seconds(&mut self, timeout_seconds: f64) {
-    self.terminate_timeout_seconds = if timeout_seconds > 0.0 {
-      Some(timeout_seconds)
-    } else {
-      None
-    }
+    ProcSpecBuilder::set_optional_timeout(&mut self.terminate_timeout_seconds, timeout_seconds)
   }
 
   pub fn set_cleanup_timeout_seconds(&mut self, timeout_seconds: f64) {
-    self.cleanup_timeout_seconds = if timeout_seconds > 0.0 {
-      Some(timeout_seconds)
-    } else {
-      None
-    }
+    ProcSpecBuilder::set_optional_timeout(&mut self.cleanup_timeout_seconds, timeout_seconds)
   }
 
   pub fn build(self) -> Result<ProcSpec, SpecError> {

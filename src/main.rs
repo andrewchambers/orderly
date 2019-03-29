@@ -48,9 +48,9 @@ impl RateLimiter {
       capacity = 0.0;
     };
     RateLimiter {
-      capacity: capacity,
+      capacity,
+      tokens_per_sec,
       tokens: capacity,
-      tokens_per_sec: tokens_per_sec,
       last_add: Instant::now(),
     }
   }
@@ -86,13 +86,13 @@ impl Supervisor {
       procs.push(None);
     }
 
-    let limiter = RateLimiter::new(spec.max_restart_tokens, spec.restart_tokens_per_second);
+    let rate_limiter = RateLimiter::new(spec.max_restart_tokens, spec.restart_tokens_per_second);
 
     Supervisor {
-      spec: spec,
-      procs: procs,
-      sigrx: sigrx,
-      rate_limiter: limiter,
+      spec,
+      procs,
+      sigrx,
+      rate_limiter,
       first_start: true,
     }
   }
@@ -424,15 +424,10 @@ impl Supervisor {
   fn clean_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
     self.check_signals()?;
 
-    {
-      log::info!("running {} cleanup.", self.spec.procs[idx].name);
-      let p = &self.procs[idx];
-
-      match p {
-        Some(_) => panic!("bug, clean without kill."),
-        None => (),
-      }
-    }
+    log::info!("running {} cleanup.", self.spec.procs[idx].name);
+    if let Some(_) = self.procs[idx] {
+      panic!("bug, clean without kill.")
+    };
 
     let env = self.get_proc_script_env("CLEANUP", idx);
     let s = &self.spec.procs[idx];
@@ -577,6 +572,7 @@ impl Supervisor {
             e
           );
           self.kill_all_procs_ignore_errors();
+
           rc = 1;
           break;
         }
@@ -631,50 +627,45 @@ fn main() {
     }
   }
 
+  macro_rules! float_arg {
+    () => {{
+      let arg = args
+        .get(arg_idx + 1)
+        .unwrap_or_else(|| die(format!("{} expects a number.", args[arg_idx]).as_ref()));
+
+      let arg = arg
+        .parse::<f64>()
+        .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", arg).as_ref()));
+
+      arg_idx += 2;
+
+      arg
+    }};
+  }
+
+  macro_rules! string_arg {
+    () => {{
+      let arg = args
+        .get(arg_idx + 1)
+        .unwrap_or_else(|| die(format!("{} expected an argument.", args[arg_idx]).as_ref()));
+      arg_idx += 2;
+      arg.clone()
+    }};
+  }
+
   while arg_idx < args.len() {
     match args[arg_idx].as_ref() {
       "-restart-tokens-per-second" => {
-        let rps = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-restart-tokens-per-second expects a number."));
-
-        let rps = rps
-          .parse::<f64>()
-          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", rps).as_ref()));
-
-        supervisor_spec_builder.set_restart_tokens_per_second(rps);
-
-        arg_idx += 2;
+        supervisor_spec_builder.set_restart_tokens_per_second(float_arg!());
       }
       "-check-delay" => {
-        let check_delay = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-check-delay expects a number."));
-
-        let check_delay = check_delay
-          .parse::<f64>()
-          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", check_delay).as_ref()));
-
-        supervisor_spec_builder.set_check_delay_seconds(check_delay);
-
-        arg_idx += 2;
+        supervisor_spec_builder.set_check_delay_seconds(float_arg!());
       }
       "-max-restart-tokens" => {
-        let max_restarts = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-max-restart-tokens expected a number number."));
-        let max_restarts = max_restarts.parse::<f64>().unwrap_or_else(|_e| {
-          die(format!("{} is not a valid unsigned number.", max_restarts).as_ref())
-        });
-        supervisor_spec_builder.set_max_restart_tokens(max_restarts);
-        arg_idx += 2;
+        supervisor_spec_builder.set_max_restart_tokens(float_arg!());
       }
       "-status-file" => {
-        let status_file = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-status_file expected an argument."));
-        supervisor_spec_builder.set_status_file(status_file.clone());
-        arg_idx += 2;
+        supervisor_spec_builder.set_status_file(string_arg!());
       }
       "--" => {
         arg_idx += 1;
@@ -685,115 +676,39 @@ fn main() {
   }
 
   while arg_idx < args.len() {
-    match args.get(arg_idx).unwrap().as_ref() {
+    match args[arg_idx].as_ref() {
       "-name" => {
-        let name = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-name expected an argument."));
-
-        proc_spec_builder.set_name(name.clone());
-
-        arg_idx += 2;
+        proc_spec_builder.set_name(string_arg!());
       }
       "-run" => {
-        let check = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-run expected an argument."));
-        proc_spec_builder.set_run(check.clone());
-        arg_idx += 2;
+        proc_spec_builder.set_run(string_arg!());
       }
       "-check" => {
-        let check = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-check expected an argument."));
-        proc_spec_builder.set_check(check.clone());
-        arg_idx += 2;
+        proc_spec_builder.set_check(string_arg!());
       }
       "-check-timeout" => {
-        let check_timeout = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-check-timeout expects a number."));
-
-        let check_timeout = check_timeout
-          .parse::<f64>()
-          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", check_timeout).as_ref()));
-
-        proc_spec_builder.set_check_timeout_seconds(check_timeout);
-
-        arg_idx += 2;
+        proc_spec_builder.set_check_timeout_seconds(float_arg!());
       }
       "-wait-started" => {
-        let wait_started = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-wait-started expected an argument."));
-        proc_spec_builder.set_wait_started(wait_started.clone());
-        arg_idx += 2;
+        proc_spec_builder.set_wait_started(string_arg!());
       }
       "-wait-started-timeout" => {
-        let wait_started_timeout = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-wait-started-timeout expects a number."));
-
-        let wait_started_timeout = wait_started_timeout.parse::<f64>().unwrap_or_else(|_e| {
-          die(format!("{} is not a valid f64.", wait_started_timeout).as_ref())
-        });
-
-        proc_spec_builder.set_wait_started_timeout_seconds(wait_started_timeout);
-
-        arg_idx += 2;
+        proc_spec_builder.set_wait_started_timeout_seconds(float_arg!());
       }
       "-cleanup" => {
-        let cleanup = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-cleanup expected an argument."));
-        proc_spec_builder.set_cleanup(cleanup.clone());
-        arg_idx += 2;
+        proc_spec_builder.set_cleanup(string_arg!());
       }
       "-cleanup-timeout" => {
-        let cleanup_timeout = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-cleanup-timeout expects a number."));
-
-        let cleanup_timeout = cleanup_timeout
-          .parse::<f64>()
-          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", cleanup_timeout).as_ref()));
-
-        proc_spec_builder.set_cleanup_timeout_seconds(cleanup_timeout);
-
-        arg_idx += 2;
+        proc_spec_builder.set_cleanup_timeout_seconds(float_arg!());
       }
       "-shutdown" => {
-        let shutdown = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-shutdown expected an argument."));
-        proc_spec_builder.set_shutdown(shutdown.clone());
-        arg_idx += 2;
+        proc_spec_builder.set_shutdown(string_arg!());
       }
       "-shutdown-timeout" => {
-        let shutdown_timeout = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-shutdown-timeout expects a number."));
-
-        let shutdown_timeout = shutdown_timeout
-          .parse::<f64>()
-          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", shutdown_timeout).as_ref()));
-
-        proc_spec_builder.set_shutdown_timeout_seconds(shutdown_timeout);
-
-        arg_idx += 2;
+        proc_spec_builder.set_shutdown_timeout_seconds(float_arg!());
       }
       "-terminate-timeout" => {
-        let terminate_timeout = args
-          .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-terminate-timeout expects a number."));
-
-        let terminate_timeout = terminate_timeout
-          .parse::<f64>()
-          .unwrap_or_else(|_e| die(format!("{} is not a valid f64.", terminate_timeout).as_ref()));
-
-        proc_spec_builder.set_terminate_timeout_seconds(terminate_timeout);
-
-        arg_idx += 2;
+        proc_spec_builder.set_terminate_timeout_seconds(float_arg!());
       }
       "-all-commands" => {
         let all = args
