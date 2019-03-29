@@ -34,7 +34,7 @@ case "$target" in
   ;;
   test)
     cargo build
-    export PATH="$PATH:$(pwd)/target/debug/"
+    export PATH="$(pwd)/target/debug/:$PATH"
     ./test/run_tests
   ;;
   git-push)
