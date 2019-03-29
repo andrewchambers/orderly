@@ -3,6 +3,8 @@ name = "orderly"
 version = "0.1.0"
 authors = ["Andrew Chambers <ac@acha.ninja>"]
 edition = "2018"
+description = "A program for ordered re(start),stop and cleanup of processes."
+license = "MIT"
 
 [dependencies]
 libc = "0.2"
