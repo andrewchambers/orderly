@@ -363,7 +363,7 @@ impl Supervisor {
       None => return self.kill_proc(idx),
     };
 
-    // XXX Some duplication from run_command, but ownership makes this hard to reuse.
+    // Some duplication from run_command, but ownership makes this hard to reuse.
     let max_delay: u64 = 500;
     let mut delay: u64 = 10;
 
@@ -845,8 +845,6 @@ fn main() {
   });
 
   if std::process::id() == 1 {
-    // https://core.suckless.org/sinit/ does the child reaping job, that
-    // can easily launch orderly.
     die(format!("running as pid 1 is not supported.").as_ref());
   }
 
