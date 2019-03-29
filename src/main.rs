@@ -3,16 +3,6 @@ use std::ops::Add;
 use std::os::unix::process::CommandExt;
 use std::time::{Duration, Instant};
 
-fn usage() {
-  println!("{}", include_str!("../man/generated/orderly.1.txt"));
-  std::process::exit(1);
-}
-
-fn die(s: &str) -> ! {
-  log::error!("{}", s);
-  std::process::exit(1);
-}
-
 struct RateLimiter {
   capacity: f64,
   tokens: f64,
@@ -603,6 +593,21 @@ impl Supervisor {
   }
 }
 
+fn usage() {
+  println!("{}", include_str!("../man/generated/orderly.1.txt"));
+  std::process::exit(0);
+}
+
+fn version() {
+  println!("{} - {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+  std::process::exit(0);
+}
+
+fn die(s: &str) -> ! {
+  log::error!("{}", s);
+  std::process::exit(1);
+}
+
 fn main() {
   simple_logger::init().unwrap();
 
@@ -613,8 +618,16 @@ fn main() {
   let mut proc_spec_builder = specs::ProcSpecBuilder::new();
 
   for a in &args {
-    if a == "-h" || a == "--help" {
+    if a == "--" {
+      break;
+    }
+
+    if a == "-h" || a == "-help" || a == "--help" {
       usage();
+    }
+
+    if a == "-version" || a == "--version" {
+      version();
     }
   }
 
