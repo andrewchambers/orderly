@@ -53,6 +53,8 @@ most people after cloning the git repository.
 
 Binary packages are not yet provided.
 
+The program can be installed from cargo with `cargo install`
+
 ## Contact
 
 Try the [mailing list](https://lists.sr.ht/~ach/orderly-dev)

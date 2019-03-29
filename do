@@ -38,8 +38,8 @@ case "$target" in
     ./test/run_tests
   ;;
   git-push)
-    git push origin
-    git push github
+    git push origin --tags
+    git push github --tags
   ;;
   *)
     echo "Don't know how to do '$target'"
