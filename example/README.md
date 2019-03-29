@@ -6,7 +6,7 @@ This is a simple example showing how you might
   - Run redis.
   - Running a simple web server.
 
-The example depends on svlogd from runit, go and redis.
+The example depends on svlogd from runit, cargo and redis.
 
 To run the example, add orderly to your PATH and run ./run\_example,
 feel free to experiment with killing services and watch the restart

@@ -8,13 +8,13 @@ cd "$dir"
 
 case $ORDERLY_ACTION in
   RUN)
-    exec go run server.go > ./logs/web-logs.pipe 2>&1
+    exec ./web-server/target/debug/web-server > ./logs/web-logs.pipe 2>&1
   ;;
   WAIT_STARTED)
     n=0
     while test "$n" -lt "100"
     do
-      sleep 0.2
+      sleep 1
       if curl -s http://127.0.0.1:8000 > /dev/null
       then
         exit 0
