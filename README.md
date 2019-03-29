@@ -53,7 +53,7 @@ most people after cloning the git repository.
 
 Binary packages are not yet provided.
 
-The program can be installed from cargo with `cargo install`
+The program can be installed from cargo with `cargo install orderly`
 
 ## Contact
 
