@@ -4,7 +4,7 @@ This is a simple example showing how you might
 
   - Collect and rotate logs.
   - Run redis.
-  - Running a simple web server.
+  - Run a simple web server.
 
 The example depends on svlogd from runit, cargo and redis.
 
