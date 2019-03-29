@@ -228,11 +228,13 @@ impl Supervisor {
     command: &str,
     env: &Vec<(String, String)>,
     timeout_secs: Option<f64>,
+    depends_on_proc: Option<usize>,
   ) -> Result<(), SupervisorError> {
     self.run_command(
       command,
       env,
       Supervisor::deadline_from_float_seconds(Instant::now(), timeout_secs),
+      depends_on_proc,
     )
   }
 
@@ -241,6 +243,7 @@ impl Supervisor {
     command: &str,
     env: &Vec<(String, String)>,
     deadline: Option<Instant>,
+    depends_on_proc: Option<usize>,
   ) -> Result<(), SupervisorError> {
     let mut c = Supervisor::spawn_child(command, env)?;
 
@@ -254,6 +257,24 @@ impl Supervisor {
         let now = Instant::now();
         if now > deadline {
           Supervisor::kill_child_tree(&mut c, Some(now.add(Duration::from_secs(10))))?;
+          return Err(SupervisorError::ProcFailed);
+        }
+      }
+
+      if let Some(idx) = depends_on_proc {
+        let ok = match self.procs[idx] {
+          Some(ref mut p) => match p.try_wait() {
+            Ok(None) => true,
+            _ => false,
+          },
+          None => false,
+        };
+
+        if !ok {
+          Supervisor::kill_child_tree(
+            &mut c,
+            Supervisor::deadline_from_float_seconds(Instant::now(), Some(10.0)),
+          )?;
           return Err(SupervisorError::ProcFailed);
         }
       }
@@ -332,7 +353,7 @@ impl Supervisor {
     let env = self.get_proc_script_env("SHUTDOWN", idx);
 
     match self.spec.procs[idx].shutdown {
-      Some(ref shutdown) => match self.run_command(&shutdown.clone(), &env, deadline) {
+      Some(ref shutdown) => match self.run_command(&shutdown.clone(), &env, deadline, None) {
         Ok(c) => c,
         Err(err) => {
           log::warn!("shutdown script error: {:?}.", err);
@@ -396,7 +417,7 @@ impl Supervisor {
           let s = &self.spec.procs[idx];
           match s.check {
             Some(ref check) => {
-              self.run_command_timeout_secs(&check.clone(), &env, s.check_timeout_seconds)
+              self.run_command_timeout_secs(&check.clone(), &env, s.check_timeout_seconds, None)
             }
             None => Ok(()),
           }
@@ -427,7 +448,7 @@ impl Supervisor {
     let s = &self.spec.procs[idx];
     match s.cleanup {
       Some(ref cleanup) => {
-        self.run_command_timeout_secs(&cleanup.clone(), &env, s.cleanup_timeout_seconds)
+        self.run_command_timeout_secs(&cleanup.clone(), &env, s.cleanup_timeout_seconds, None)
       }
       None => Ok(()),
     }
@@ -451,6 +472,7 @@ impl Supervisor {
           &wait_started.clone(),
           &env,
           s.wait_started_timeout_seconds,
+          Some(idx),
         )?,
         None => (),
       }

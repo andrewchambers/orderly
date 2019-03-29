@@ -1,0 +1,23 @@
+#! /usr/bin/env bash
+
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd "$dir"
+
+set -eu
+
+start="$(date +%s)"
+
+if timeout 10s orderly -max-restart-tokens 1 -restart-tokens-per-second 0 -- \
+  -name sv -all-commands ./sv > test.out 2>&1 
+then
+  echo "expected an error."
+  exit 1
+fi
+
+
+end="$(date +%s)"
+test_duration=$((end - start))
+
+test "$test_duration" -lt 5
+

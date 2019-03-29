@@ -1,0 +1,33 @@
+#! /usr/bin/env bash
+
+set -eu
+
+p () {
+  echo "$ORDERLY_SERVICE_NAME $ORDERLY_ACTION"
+}
+
+case $ORDERLY_ACTION in
+  RUN)
+    echo "starting..."
+    sleep 1
+    echo "exiting early..."
+    exit 1
+  ;;
+  WAIT_STARTED)
+    sleep 9999
+  ;;
+  CHECK)
+    p
+  ;;
+  SHUTDOWN)
+    p
+    kill -9 $ORDERLY_RUN_PID
+  ;;
+  CLEANUP)
+    p
+  ;;
+  *)
+    echo "unknown action: $ORDERLY_ACTION"
+    exit 1
+  ;;
+esac
