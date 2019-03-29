@@ -8,20 +8,20 @@ dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 cd "$dir"
 
+format_doc () {
+  pandoc -f gfm -t gfm $1 > $1.tmp
+  mv $1.tmp $1
+}
+
 case "$target" in
   default)
     echo "Read this script to get a list of valid commands."
   ;;
   doc)
     # format docs
-    pandoc -f gfm -t gfm README.md > README.md.tmp
-    mv README.md.tmp README.md
-
-    pandoc -f gfm -t gfm ./example/README.md > ./example/README.md.tmp
-    mv ./example/README.md.tmp ./example/README.md
-    
-    pandoc -f gfm -t gfm man/orderly.1.md > man/orderly.1.md.tmp
-    mv man/orderly.1.md.tmp man/orderly.1.md
+    format_doc README.md
+    format_doc ./example/README.md
+    format_doc ./dist/README.md
     
     # generate man pages.
     rm -rf ./man/generated
