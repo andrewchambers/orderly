@@ -134,7 +134,7 @@ The name of the process being managed.
 
 ### ORDERLY\_ACTION
 
-One of START_COMPLETE, FAILURE, RUN, WAIT\_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which
+One of START_COMPLETE, RESTART, FAILURE, RUN, WAIT\_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which
 action **orderly** is requesting.
 
 ### ORDERLY\_RUN\_PID

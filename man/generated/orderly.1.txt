@@ -101,8 +101,8 @@ PROCESS SPEC ENV VARIABLES
        The name of the process being managed.
 
    ORDERLY_ACTION
-       One  of  START_COMPLETE, FAILURE, RUN, WAIT_STARTED, CHECK, SHUTDOWN, CLEANUP depending on
-       which action orderly is requesting.
+       One  of  START_COMPLETE,  RESTART,  FAILURE,  RUN,  WAIT_STARTED, CHECK, SHUTDOWN, CLEANUP
+       depending on which action orderly is requesting.
 
    ORDERLY_RUN_PID
        The pid of the supervised process, if it is running.
