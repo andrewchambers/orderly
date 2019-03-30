@@ -288,10 +288,13 @@ impl Supervisor {
     }
   }
 
-  fn get_proc_script_env(&mut self, action: &str, idx: usize) -> Vec<(String, String)> {
-    let mut env = vec![];
+  fn get_supervisor_script_env(action: &str) -> Vec<(String, String)> {
+    vec![(String::from("ORDERLY_ACTION"), String::from(action))]
+  }
 
-    env.push((String::from("ORDERLY_ACTION"), String::from(action)));
+  fn get_proc_script_env(&mut self, action: &str, idx: usize) -> Vec<(String, String)> {
+    let mut env = Supervisor::get_supervisor_script_env(action);
+
     env.push((
       String::from("ORDERLY_SERVICE_NAME"),
       self.spec.procs[idx].name.clone(),
@@ -491,10 +494,6 @@ impl Supervisor {
   fn restart_all_procs(&mut self) -> Result<(), SupervisorError> {
     log::info!("(re)starting all procs.");
 
-    if !self.rate_limiter.take() {
-      return Err(SupervisorError::RestartLimitReached);
-    }
-
     self.kill_all_procs()?;
 
     for i in 0..self.procs.len() {
@@ -512,10 +511,27 @@ impl Supervisor {
     Ok(())
   }
 
-  fn supervise(&mut self) -> SupervisorError {
+  fn supervise(&mut self, num_restarts: u128) -> SupervisorError {
     if self.first_start {
       if let Err(e) = self.write_status_file("STARTING\n") {
         return e;
+      }
+    }
+
+    if !self.rate_limiter.take() {
+      return SupervisorError::RestartLimitReached;
+    }
+
+    if num_restarts > 0 {
+      if let Some(ref restart) = self.spec.restart {
+        if let Err(e) = self.run_command(
+          &restart.clone(),
+          &Supervisor::get_supervisor_script_env("RESTART"),
+          Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.failure_timeout),
+          None,
+        ) {
+          log::error!("error running restart lifecycle hook: {:?}.", e);
+        }
       }
     }
 
@@ -526,8 +542,20 @@ impl Supervisor {
 
     if self.first_start {
       self.first_start = false;
+
       if let Err(e) = self.write_status_file("RUNNING\n") {
         return e;
+      }
+
+      if let Some(ref start_complete) = self.spec.start_complete {
+        if let Err(e) = self.run_command(
+          &start_complete.clone(),
+          &Supervisor::get_supervisor_script_env("START_COMPLETE"),
+          Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.start_complete_timeout),
+          None,
+        ) {
+          return e;
+        }
       }
     }
 
@@ -547,10 +575,17 @@ impl Supervisor {
   fn supervise_forever(&mut self) {
     let rc: i32;
 
+    let mut num_restarts: u128 = 0;
+
     loop {
-      match self.supervise() {
+      match self.supervise(num_restarts) {
         e @ SupervisorError::IOError(_) | e @ SupervisorError::ProcFailed => {
-          log::warn!("supervisor encountered an error: {:?}.", e);
+          num_restarts = num_restarts + 1;
+          log::warn!(
+            "supervisor encountered an error: {:?} (restarts={}).",
+            e,
+            num_restarts
+          );
         }
         SupervisorError::Shutdown => {
           log::info!("supervisor shutting down gracefully.");
@@ -572,6 +607,17 @@ impl Supervisor {
             e
           );
           self.kill_all_procs_ignore_errors();
+
+          if let Some(ref failure) = self.spec.failure {
+            if let Err(e) = self.run_command(
+              &failure.clone(),
+              &Supervisor::get_supervisor_script_env("FAILURE"),
+              Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.failure_timeout),
+              None,
+            ) {
+              log::error!("error running failure lifecycle hook: {:?}.", e);
+            }
+          }
 
           rc = 1;
           break;
@@ -666,6 +712,33 @@ fn main() {
       }
       "-status-file" => {
         supervisor_spec_builder.set_status_file(string_arg!());
+      }
+      "-start-complete" => {
+        supervisor_spec_builder.set_start_complete(string_arg!());
+      }
+      "-start-complete-timeout" => {
+        supervisor_spec_builder.set_start_complete_timeout(float_arg!());
+      }
+      "-on-restart" => {
+        supervisor_spec_builder.set_restart(string_arg!());
+      }
+      "-on-restart-timeout" => {
+        supervisor_spec_builder.set_restart_timeout(float_arg!());
+      }
+      "-on-failure" => {
+        supervisor_spec_builder.set_failure(string_arg!());
+      }
+      "-on-failure-timeout" => {
+        supervisor_spec_builder.set_failure_timeout(float_arg!());
+      }
+      "-all-commands" => {
+        let all = args
+          .get(arg_idx + 1)
+          .unwrap_or_else(|| die("-all-commands expected an argument."));
+        supervisor_spec_builder.set_start_complete(all.clone());
+        supervisor_spec_builder.set_restart(all.clone());
+        supervisor_spec_builder.set_failure(all.clone());
+        arg_idx += 2;
       }
       "--" => {
         arg_idx += 1;

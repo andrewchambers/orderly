@@ -38,6 +38,31 @@ is controlling have started successfully at least one time. The main use
 for this file is for creating nested **orderly** supervision trees that
 start in order.
 
+### \-start-complete BIN
+
+An optional command to run when the first startup completes successfully,
+this can be used to signal to parent orderly instances initialization can continue.
+
+### \-on-restart BIN
+
+An optional command to run before each restart that is triggered by a command failure.
+
+### \-on-failure BIN
+
+An optional command to run when orderly encounters an unrecoverable error, and
+must abort operation.
+
+### \-all-commands BIN
+
+Shorthand for setting all commands to the same script, in this case env
+variables can disambiguate the action to
+take.
+
+### \-{start-complete,on-restart,on-failure}-timeout SECONDS (default=120)\`
+
+The number of seconds to wait for a given command before giving up and
+triggering a restart. A negative value means no timeout.
+
 ### \-check-delay PATH (default=5)
 
 The amount of time in seconds to wait between health check loops.
@@ -109,7 +134,7 @@ The name of the process being managed.
 
 ### ORDERLY\_ACTION
 
-One of RUN, WAIT\_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which
+One of START_COMPLETE, FAILURE, RUN, WAIT\_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which
 action **orderly** is requesting.
 
 ### ORDERLY\_RUN\_PID

@@ -112,6 +112,31 @@ is controlling have started successfully at least one time. The main use
 for this file is for creating nested <strong>orderly</strong> supervision trees that
 start in order.</p>
 
+<h3 id="-start-complete-BIN">-start-complete BIN</h3>
+
+<p>An optional command to run when the first startup completes successfully,
+this can be used to signal to parent orderly instances initialization can continue.</p>
+
+<h3 id="-on-restart-BIN">-on-restart BIN</h3>
+
+<p>An optional command to run before each restart that is triggered by a command failure.</p>
+
+<h3 id="-on-failure-BIN">-on-failure BIN</h3>
+
+<p>An optional command to run when orderly encounters an unrecoverable error, and
+must abort operation.</p>
+
+<h3 id="-all-commands-BIN">-all-commands BIN</h3>
+
+<p>Shorthand for setting all commands to the same script, in this case env
+variables can disambiguate the action to
+take.</p>
+
+<h3 id="-start-complete-on-restart-on-failure-timeout-SECONDS-default-120-">-{start-complete,on-restart,on-failure}-timeout SECONDS (default=120)`</h3>
+
+<p>The number of seconds to wait for a given command before giving up and
+triggering a restart. A negative value means no timeout.</p>
+
 <h3 id="-check-delay-PATH-default-5-">-check-delay PATH (default=5)</h3>
 
 <p>The amount of time in seconds to wait between health check loops.</p>
@@ -183,7 +208,7 @@ value means no timeout.</p>
 
 <h3 id="ORDERLY_ACTION">ORDERLY_ACTION</h3>
 
-<p>One of RUN, WAIT_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which
+<p>One of START_COMPLETE, FAILURE, RUN, WAIT_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which
 action <strong>orderly</strong> is requesting.</p>
 
 <h3 id="ORDERLY_RUN_PID">ORDERLY_RUN_PID</h3>

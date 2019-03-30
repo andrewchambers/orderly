@@ -36,6 +36,21 @@ The rate at which restarts are added into the restart pool\.
 .SS "\-status\-file PATH"
 If specified, a file to be written containing the current status of \fBorderly\fR\. The file will contain either "STARTING", "RUNNING"\. \fBorderly\fR transitions from starting, to running after all procesess it is controlling have started successfully at least one time\. The main use for this file is for creating nested \fBorderly\fR supervision trees that start in order\.
 .
+.SS "\-start\-complete BIN"
+An optional command to run when the first startup completes successfully, this can be used to signal to parent orderly instances initialization can continue\.
+.
+.SS "\-on\-restart BIN"
+An optional command to run before each restart that is triggered by a command failure\.
+.
+.SS "\-on\-failure BIN"
+An optional command to run when orderly encounters an unrecoverable error, and must abort operation\.
+.
+.SS "\-all\-commands BIN"
+Shorthand for setting all commands to the same script, in this case env variables can disambiguate the action to take\.
+.
+.SS "\-{start\-complete,on\-restart,on\-failure}\-timeout SECONDS (default=120)`"
+The number of seconds to wait for a given command before giving up and triggering a restart\. A negative value means no timeout\.
+.
 .SS "\-check\-delay PATH (default=5)"
 The amount of time in seconds to wait between health check loops\.
 .
@@ -75,7 +90,7 @@ The following env variables are passed to any specified process scripts\.
 The name of the process being managed\.
 .
 .SS "ORDERLY_ACTION"
-One of RUN, WAIT_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which action \fBorderly\fR is requesting\.
+One of START_COMPLETE, FAILURE, RUN, WAIT_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which action \fBorderly\fR is requesting\.
 .
 .SS "ORDERLY_RUN_PID"
 The pid of the supervised process, if it is running\.
