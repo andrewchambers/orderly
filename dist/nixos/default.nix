@@ -1,4 +1,4 @@
 let
   pkgs = ((import <nixpkgs>) {});
 in
-  pkgs.callPackage ./orderly-0_1_0.nix {}
+  pkgs.callPackage ./orderly-0_2_0.nix {}
