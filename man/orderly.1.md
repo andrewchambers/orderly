@@ -114,8 +114,7 @@ take.
 
 ### \-{wait-started,check,shutdown,clean}-timeout SECONDS (default=120)\`
 
-The number of seconds to wait for a given command before giving up and
-triggering a restart. A negative value means no timeout.
+The number of seconds to wait for a given command before giving up. A negative value means no timeout.
 
 ### \-terminate-timeout SECONDS (default=10)\`
 
