@@ -69,7 +69,7 @@ impl RateLimiter {
   fn add_tokens(&mut self) {
     let now = std::time::Instant::now();
     let duration = now.duration_since(self.last_add);
-    let millis = 1000 * duration.as_secs() + duration.subsec_millis() as u64;
+    let millis = 1000 * duration.as_secs() + u64::from(duration.subsec_millis());
     let new_tokens = ((millis as f64) * self.tokens_per_sec) / 1000.0;
     self.tokens += new_tokens;
     if self.tokens > self.capacity {
@@ -120,25 +120,29 @@ impl Supervisor {
 
   fn check_signals(&mut self) -> Result<(), SupervisorError> {
     match self.sigrx.try_recv() {
-      Ok(Signal::Shutdown) => return Err(SupervisorError::Shutdown),
-      Ok(Signal::Terminate) => return Err(SupervisorError::Terminated),
+      Ok(Signal::Shutdown) => Err(SupervisorError::Shutdown),
+      Ok(Signal::Terminate) => Err(SupervisorError::Terminated),
       _ => Ok(()),
     }
   }
 
   fn sleep(&mut self, d: Duration) -> Result<(), SupervisorError> {
-    crossbeam_channel::select! {
-      recv(self.sigrx) -> sig => if let Ok(sig) = sig {
-        match sig {
-          Signal::Shutdown => return Err(SupervisorError::Shutdown),
-          Signal::Terminate => return Err(SupervisorError::Terminated),
+    let mut sel = crossbeam_channel::Select::new();
+    let interrupt = sel.recv(&self.sigrx);
+    match sel.select_timeout(d) {
+      Ok(oper) => {
+        assert!(oper.index() == interrupt);
+        if let Ok(sig) = oper.recv(&self.sigrx) {
+          match sig {
+            Signal::Shutdown => Err(SupervisorError::Shutdown),
+            Signal::Terminate => Err(SupervisorError::Terminated),
+          }
+        } else {
+          Ok(())
         }
-      } else {
-        return Err(SupervisorError::Terminated)
-      },
-      default(d) => (),
+      }
+      Err(_) => Ok(()),
     }
-    Ok(())
   }
 
   fn kill_child_tree(
@@ -190,7 +194,7 @@ impl Supervisor {
 
   fn spawn_child(
     command: &str,
-    env: &Vec<(String, String)>,
+    env: &[(String, String)],
   ) -> Result<std::process::Child, SupervisorError> {
     let mut cmd = std::process::Command::new(command);
     cmd.stdin(std::process::Stdio::null());
@@ -216,7 +220,7 @@ impl Supervisor {
   fn run_command_timeout_secs(
     &mut self,
     command: &str,
-    env: &Vec<(String, String)>,
+    env: &[(String, String)],
     timeout_secs: Option<f64>,
     depends_on_proc: Option<usize>,
   ) -> Result<(), SupervisorError> {
@@ -231,7 +235,7 @@ impl Supervisor {
   fn run_command(
     &mut self,
     command: &str,
-    env: &Vec<(String, String)>,
+    env: &[(String, String)],
     deadline: Option<Instant>,
     depends_on_proc: Option<usize>,
   ) -> Result<(), SupervisorError> {
@@ -373,13 +377,12 @@ impl Supervisor {
       {
         let p = &mut self.procs[idx];
         match p {
-          Some(c) => match c.try_wait()? {
-            Some(_) => {
+          Some(c) => {
+            if c.try_wait()?.is_some() {
               *p = None;
               break;
             }
-            None => (),
-          },
+          }
           None => break,
         };
       }
@@ -428,7 +431,7 @@ impl Supervisor {
     self.check_signals()?;
 
     log::info!("running {} cleanup.", self.spec.procs[idx].name);
-    if let Some(_) = self.procs[idx] {
+    if self.procs[idx].is_some() {
       panic!("bug, clean without kill.")
     };
 
@@ -448,21 +451,20 @@ impl Supervisor {
     log::info!("starting {}.", self.spec.procs[idx].name);
 
     let env = self.get_proc_script_env("RUN", idx);
-    let s = self.spec.procs.get(idx).unwrap();
+    let s = &self.spec.procs[idx];
     let c = Supervisor::spawn_child(&s.run, &env)?;
     self.procs[idx] = Some(c);
 
     {
       let env = self.get_proc_script_env("WAIT_STARTED", idx);
       let s = &self.spec.procs[idx];
-      match s.wait_started {
-        Some(ref wait_started) => self.run_command_timeout_secs(
+      if let Some(ref wait_started) = s.wait_started {
+        self.run_command_timeout_secs(
           &wait_started.clone(),
           &env,
           s.wait_started_timeout_seconds,
           Some(idx),
-        )?,
-        None => (),
+        )?
       }
     }
 
@@ -580,7 +582,7 @@ impl Supervisor {
     loop {
       match self.supervise(num_restarts) {
         e @ SupervisorError::IOError(_) | e @ SupervisorError::ProcFailed => {
-          num_restarts = num_restarts + 1;
+          num_restarts += 1;
           log::warn!(
             "supervisor encountered an error: {:?} (restarts={}).",
             e,
@@ -846,7 +848,7 @@ fn main() {
   });
 
   if std::process::id() == 1 {
-    die(format!("running as pid 1 is not supported.").as_ref());
+    die("running as pid 1 is not supported.");
   }
 
   let mut supervisor = Supervisor::new(spec, sigrx);
