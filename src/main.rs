@@ -15,19 +15,18 @@ struct Supervisor {
   procs: Vec<Option<std::process::Child>>,
   rate_limiter: RateLimiter,
   sigrx: crossbeam_channel::Receiver<Signal>,
-  first_start: bool,
+  num_restarts: u128,
+  num_successful_starts: u128,
 }
 
 enum Signal {
   Shutdown,
-  Terminate,
 }
 
 #[derive(Debug)]
 enum SupervisorError {
   IOError(std::io::Error),
   Shutdown,
-  Terminated,
   RestartLimitReached,
   ProcFailed,
   UnkillableChild,
@@ -93,7 +92,8 @@ impl Supervisor {
       procs,
       sigrx,
       rate_limiter,
-      first_start: true,
+      num_restarts: 0,
+      num_successful_starts: 0,
     }
   }
 
@@ -121,7 +121,6 @@ impl Supervisor {
   fn check_signals(&mut self) -> Result<(), SupervisorError> {
     match self.sigrx.try_recv() {
       Ok(Signal::Shutdown) => Err(SupervisorError::Shutdown),
-      Ok(Signal::Terminate) => Err(SupervisorError::Terminated),
       _ => Ok(()),
     }
   }
@@ -135,7 +134,6 @@ impl Supervisor {
         if let Ok(sig) = oper.recv(&self.sigrx) {
           match sig {
             Signal::Shutdown => Err(SupervisorError::Shutdown),
-            Signal::Terminate => Err(SupervisorError::Terminated),
           }
         } else {
           Ok(())
@@ -311,9 +309,10 @@ impl Supervisor {
     env
   }
 
+  // Kill a supervised process, guaranteed to exit the process unless
+  // SIGKILL fails, will run clean process hook which may fail, but the
+  // process should be dead regardless.
   fn kill_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
-    // Kill is not affected by signals...
-
     let p = &mut self.procs[idx];
 
     match p {
@@ -333,69 +332,69 @@ impl Supervisor {
     };
 
     self.clean_proc(idx)?;
-
     Ok(())
   }
 
   fn shutdown_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
     self.check_signals()?;
 
-    log::info!("shutting down {}.", self.spec.procs[idx].name.as_str());
+    if self.procs[idx].is_some() {
+      log::info!("shutting down {}.", self.spec.procs[idx].name.as_str());
 
-    let start_t = Instant::now();
-    let deadline = Supervisor::deadline_from_float_seconds(
-      start_t,
-      self.spec.procs[idx].shutdown_timeout_seconds,
-    );
-    let env = self.get_proc_script_env("SHUTDOWN", idx);
+      let start_t = Instant::now();
+      let deadline = Supervisor::deadline_from_float_seconds(
+        start_t,
+        self.spec.procs[idx].shutdown_timeout_seconds,
+      );
+      let env = self.get_proc_script_env("SHUTDOWN", idx);
 
-    match self.spec.procs[idx].shutdown {
-      Some(ref shutdown) => match self.run_command(&shutdown.clone(), &env, deadline, None) {
-        Ok(c) => c,
-        Err(err) => {
-          log::warn!("shutdown script error: {:?}.", err);
-          return self.kill_proc(idx);
-        }
-      },
-      None => return self.kill_proc(idx),
-    };
-
-    // Some duplication from run_command, but ownership makes this hard to reuse.
-    let max_delay: u64 = 500;
-    let mut delay: u64 = 10;
-
-    loop {
-      self.check_signals()?;
-
-      if let Some(deadline) = deadline {
-        if Instant::now() > deadline {
-          log::warn!("shutdown script exited, but shutdown timed out, using kill instead.");
-          return self.kill_proc(idx);
-        }
-      }
-
-      {
-        let p = &mut self.procs[idx];
-        match p {
-          Some(c) => {
-            if c.try_wait()?.is_some() {
-              *p = None;
-              break;
-            }
+      match self.spec.procs[idx].shutdown {
+        Some(ref shutdown) => match self.run_command(&shutdown.clone(), &env, deadline, None) {
+          Ok(()) => (),
+          Err(err) => {
+            log::warn!("shutdown script error: {:?}.", err);
+            return self.kill_proc(idx);
           }
-          None => break,
-        };
-      }
+        },
+        None => return self.kill_proc(idx),
+      };
 
-      self.sleep(Duration::from_millis(delay))?;
-      delay += 50;
-      if delay > max_delay {
-        delay = max_delay
+      // Some duplication from run_command, but ownership makes this hard to reuse.
+      let max_delay: u64 = 500;
+      let mut delay: u64 = 10;
+
+      loop {
+        self.check_signals()?;
+
+        if let Some(deadline) = deadline {
+          if Instant::now() > deadline {
+            log::warn!("shutdown script exited, but shutdown timed out, using kill instead.");
+            return self.kill_proc(idx);
+          }
+        }
+
+        {
+          let p = &mut self.procs[idx];
+          match p {
+            Some(c) => {
+              if c.try_wait()?.is_some() {
+                *p = None;
+                break;
+              }
+            }
+            None => break,
+          };
+        }
+
+        self.sleep(Duration::from_millis(delay))?;
+        delay += 50;
+        if delay > max_delay {
+          delay = max_delay
+        }
       }
     }
 
     self.clean_proc(idx)?;
-
     Ok(())
   }
 
@@ -471,14 +470,7 @@ impl Supervisor {
     Ok(())
   }
 
-  fn kill_all_procs(&mut self) -> Result<(), SupervisorError> {
-    for i in (0..self.procs.len()).rev() {
-      self.kill_proc(i)?;
-    }
-    Ok(())
-  }
-
-  fn kill_all_procs_ignore_errors(&mut self) {
+  fn kill_all_procs_no_error(&mut self) {
     for i in (0..self.procs.len()).rev() {
       if let Err(e) = self.kill_proc(i) {
         log::warn!("error while killing proc: {:?}.", e);
@@ -496,7 +488,7 @@ impl Supervisor {
   fn restart_all_procs(&mut self) -> Result<(), SupervisorError> {
     log::info!("(re)starting all procs.");
 
-    self.kill_all_procs()?;
+    self.shutdown_all_procs()?;
 
     for i in 0..self.procs.len() {
       self.start_proc(i)?;
@@ -513,8 +505,8 @@ impl Supervisor {
     Ok(())
   }
 
-  fn supervise(&mut self, num_restarts: u128) -> SupervisorError {
-    if self.first_start {
+  fn supervise(&mut self) -> SupervisorError {
+    if self.num_successful_starts == 0 {
       if let Err(e) = self.write_status_file("STARTING\n") {
         return e;
       }
@@ -524,7 +516,7 @@ impl Supervisor {
       return SupervisorError::RestartLimitReached;
     }
 
-    if num_restarts > 0 {
+    if self.num_restarts > 0 {
       if let Some(ref restart) = self.spec.restart {
         if let Err(e) = self.run_command(
           &restart.clone(),
@@ -532,19 +524,19 @@ impl Supervisor {
           Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.failure_timeout),
           None,
         ) {
-          log::error!("error running restart lifecycle hook: {:?}.", e);
+          log::warn!("error running restart lifecycle hook: {:?}.", e);
         }
       }
     }
+
+    self.num_restarts += 1;
 
     match self.restart_all_procs() {
       Ok(()) => (),
       Err(e) => return e,
     };
 
-    if self.first_start {
-      self.first_start = false;
-
+    if self.num_successful_starts == 0 {
       if let Err(e) = self.write_status_file("RUNNING\n") {
         return e;
       }
@@ -561,6 +553,8 @@ impl Supervisor {
       }
     }
 
+    self.num_successful_starts += 1;
+
     loop {
       match self.check_all_procs() {
         Ok(()) => match self.sleep(Duration::from_millis(
@@ -575,53 +569,46 @@ impl Supervisor {
   }
 
   fn supervise_forever(&mut self) {
-    let rc: i32;
-
-    let mut num_restarts: u128 = 0;
+    let mut rc: i32 = 0;
 
     loop {
-      match self.supervise(num_restarts) {
+      match self.supervise() {
         e @ SupervisorError::IOError(_) | e @ SupervisorError::ProcFailed => {
-          num_restarts += 1;
-          log::warn!(
-            "supervisor encountered an error: {:?} (restarts={}).",
-            e,
-            num_restarts
-          );
+          log::warn!("supervisor encountered an error: {:?}.", e,);
         }
-        SupervisorError::Shutdown => {
-          log::info!("supervisor shutting down gracefully.");
+        e @ SupervisorError::Shutdown
+        | e @ SupervisorError::RestartLimitReached
+        | e @ SupervisorError::UnkillableChild => {
+          log::info!("supervisor shutting down: {:?}.", e);
+
           match self.shutdown_all_procs() {
             Ok(()) => (),
             Err(e) => {
-              log::error!("unable shutdown child procs, killing instead: {:?}.", e);
-              self.kill_all_procs_ignore_errors();
-            }
-          }
-          rc = 0;
-          break;
-        }
-        e @ SupervisorError::Terminated
-        | e @ SupervisorError::RestartLimitReached
-        | e @ SupervisorError::UnkillableChild => {
-          log::error!(
-            "supervisor unable to continue: {:?} - shutting down brutally.",
-            e
-          );
-          self.kill_all_procs_ignore_errors();
-
-          if let Some(ref failure) = self.spec.failure {
-            if let Err(e) = self.run_command(
-              &failure.clone(),
-              &Supervisor::get_supervisor_script_env("FAILURE"),
-              Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.failure_timeout),
-              None,
-            ) {
-              log::error!("error running failure lifecycle hook: {:?}.", e);
+              log::warn!(
+                "unable shutdown child procs cleanly ({:?}), killing instead.",
+                e
+              );
+              rc = 1;
+              self.kill_all_procs_no_error();
             }
           }
 
-          rc = 1;
+          if let SupervisorError::Shutdown = e {
+            // Clean shutdown, take rc based on any errors during shutdown.
+          } else {
+            rc = 1;
+
+            if let Some(ref failure) = self.spec.failure {
+              if let Err(e) = self.run_command(
+                &failure.clone(),
+                &Supervisor::get_supervisor_script_env("FAILURE"),
+                Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.failure_timeout),
+                None,
+              ) {
+                log::warn!("error running failure lifecycle hook: {:?}.", e);
+              }
+            }
+          }
           break;
         }
       }
@@ -835,11 +822,8 @@ fn main() {
     {
       for signal in signals.forever() {
         match signal {
-          signal_hook::SIGINT => {
+          signal_hook::SIGINT | signal_hook::SIGTERM => {
             let _ = sigtx.send(Signal::Shutdown);
-          }
-          signal_hook::SIGTERM => {
-            let _ = sigtx.send(Signal::Terminate);
           }
           _ => (),
         }

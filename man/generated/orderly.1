@@ -69,7 +69,10 @@ An optional command invoked concurrently with the service, it should exit with a
 An optional command invoked periodically as a health check\. If this commands times out or returns an unsuccessful exit code, a restart will be triggered\. This check is in addition to ensuring the run process has not exited\.
 .
 .SS "\-shutdown BIN"
-An optional command to cleanly shutdown the supervised process\. Is used for clean shutdown if \fBorderly\fR recieves a SIGINT signal\. If not specified, \fBorderly\fR will send SIGKILL to terminate the supervised process\.
+An optional command to shutdown the supervised process\. If not specified, \fBorderly\fR will send SIGTERM to terminate the supervised process\.
+.
+.P
+The shutdown command may be run if a command start times out, a sibling process dies and the server needs to restart, or orderly is shutting down\.
 .
 .SS "\-clean BIN"
 An optional command to cleanup any resources the running process may have left\. If it exits with an unsuccessful exit code, a restart will be triggered\. Process cleaning should be idempotent, and always happens in reverse order to process startup\.
@@ -78,10 +81,10 @@ An optional command to cleanup any resources the running process may have left\.
 Shorthand for setting all commands to the same script, in this case env variables can disambiguate the action to take\.
 .
 .SS "\-{wait\-started,check,shutdown,clean}\-timeout SECONDS (default=120)`"
-The number of seconds to wait for a given command before giving up and triggering a restart\. A negative value means no timeout\.
+The number of seconds to wait for a given command before giving up\. A negative value means no timeout\.
 .
 .SS "\-terminate\-timeout SECONDS (default=10)`"
-When terminating a child due to sigterm, or an unrecoverable error, first orderly will send a SIGTERM to the child\. If the child does not exist after this timeout, then a SIGKILL is sent instead\. A negative value means no timeout\.
+The amount of time to wait after a shutdown command before terminating the child with a SIGKILL if it does not exit on it\'s own\.
 .
 .SH "PROCESS SPEC ENV VARIABLES"
 The following env variables are passed to any specified process scripts\.
@@ -97,11 +100,11 @@ The pid of the supervised process, if it is running\.
 .
 .SH "SIGNALS"
 .
-.SS "SIGINT"
-\fBorderly\fR shuts all processes down with the provided shutdown commands in reverse order\. If a process does not have a shutdown command, it is killed\.
+.SS "SIGINT SIGTERM"
+\fBorderly\fR shuts all processes down with the provided or default shutdown commands in reverse order\.
 .
-.SS "SIGTERM"
-\fBorderly\fR kills all processes in reverse order, then exits as soon as possible\.\fBorderly\fR exists with a zero exit code only if shutdown after a SIGINT occured with no errors\.
+.SH "EXIT CODE"
+\fBorderly\fR exits with a zero exit code only if shutdown after a SIGINT or SIGTERM occured with no errors\.
 .
 .SH "EXAMPLE"
 Given the executable service script \'sv\':

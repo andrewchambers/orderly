@@ -41,6 +41,12 @@ $ orderly -max-restart-tokens 2 -restart-tokens-per-second 0.1 -- \
 
 For a full featured example with code, check the example directory.
 
+## Implementation status
+
+The software works, but the interface is not stable and still being
+tweaked. Expect breaking changes between releases until version 1.0.0 is
+released.
+
 ## Building from source
 
 [![builds.sr.ht

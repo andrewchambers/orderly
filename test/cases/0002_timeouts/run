@@ -36,6 +36,10 @@ then
   exit 1
 fi
 
+# This test has a slightly strange expected result.
+# First the initial cleanup fails causing a shutdown,
+# next the shutdown fails, causing a kill,
+# finally the kill fails, and we exit anyway.
 diff -u <(grep "^sv" test3.out) test3.expected
 
 

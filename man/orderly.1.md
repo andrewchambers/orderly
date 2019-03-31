@@ -94,10 +94,12 @@ not exited.
 
 ### \-shutdown BIN
 
-An optional command to cleanly shutdown the supervised process. Is used
-for clean shutdown if **orderly** recieves a SIGINT signal. If not
-specified, **orderly** will send SIGKILL to terminate the supervised
+An optional command to shutdown the supervised process. If not
+specified, **orderly** will send SIGTERM to terminate the supervised
 process.
+
+The shutdown command may be run if a command start times out, a sibling process
+dies and the server needs to restart, or orderly is shutting down.
 
 ### \-clean BIN
 
@@ -118,10 +120,8 @@ The number of seconds to wait for a given command before giving up. A negative v
 
 ### \-terminate-timeout SECONDS (default=10)\`
 
-When terminating a child due to sigterm, or an unrecoverable error,
-first orderly will send a SIGTERM to the child. If the child does not
-exist after this timeout, then a SIGKILL is sent instead. A negative
-value means no timeout.
+The amount of time to wait after a shutdown command before terminating the child
+with a SIGKILL if it does not exit on it's own.
 
 ## PROCESS SPEC ENV VARIABLES
 
@@ -142,20 +142,14 @@ The pid of the supervised process, if it is running.
 
 ## SIGNALS
 
-### SIGINT
+### SIGINT SIGTERM
 
-**orderly** shuts all processes down with the provided shutdown commands
-in reverse order. If a process does not have a shutdown command, it is
-killed.
+**orderly** shuts all processes down with the provided or default shutdown commands
+in reverse order.
 
-### SIGTERM
+## EXIT CODE
 
-**orderly** kills all processes in reverse order, then exits as soon as
-possible.
-
-# EXIT CODE
-
-**orderly** exists with a zero exit code only if shutdown after a SIGINT
+**orderly** exits with a zero exit code only if shutdown after a SIGINT or SIGTERM
 occured with no errors.
 
 ## EXAMPLE
