@@ -6,11 +6,22 @@ cd "$dir"
 
 set -eu
 
-if timeout 30s orderly -max-restart-tokens 2 -restart-tokens-per-second 0 -all-commands ./lifecycle -- \
-  -name sv -all-commands ./sv > test.out
+export CLEAN_SHUTDOWN=yes
+if ! timeout 30s orderly -max-start-tokens 1 -start-tokens-per-second 0 -all-lifecycle-hooks ./lifecycle -- \
+  -name sv -all-commands ./sv > test1.out
+then
+  echo "expected a clean shtudown."
+  exit 1
+fi
+
+diff -u <(grep -e "^sv" -e "^lifecycle" test1.out) test1.expected
+
+export CLEAN_SHUTDOWN=no
+if timeout 30s orderly -max-start-tokens 2 -start-tokens-per-second 0 -all-lifecycle-hooks ./lifecycle -- \
+  -name sv -all-commands ./sv > test2.out
 then
   echo "expected an error."
   exit 1
 fi
 
-diff -u <(grep -e "^sv" -e "^lifecycle" test.out) test.expected
+diff -u <(grep -e "^sv" -e "^lifecycle" test2.out) test2.expected

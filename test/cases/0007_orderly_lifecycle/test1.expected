@@ -1,0 +1,6 @@
+sv CLEANUP
+sv RUN
+sv WAIT_STARTED
+lifecycle START_COMPLETE
+sv CLEANUP
+lifecycle SHUTDOWN

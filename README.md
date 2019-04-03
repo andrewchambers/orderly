@@ -34,7 +34,7 @@ operating system for example, which does not even support systemd.
 ## Example
 
 ``` 
-$ orderly -max-restart-tokens 2 -restart-tokens-per-second 0.1 -- \
+$ orderly -max-start-tokens 2 -start-tokens-per-second 0.1 -- \
   -name redis   -run ./run-redis -wait-started ./wait-redis  -- \
   -name website -run ./run-website -check ./health-check-website -cleanup ./website-cleanup 
 ```

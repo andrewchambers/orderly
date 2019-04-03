@@ -85,7 +85,7 @@ impl Supervisor {
       procs.push(None);
     }
 
-    let rate_limiter = RateLimiter::new(spec.max_restart_tokens, spec.restart_tokens_per_second);
+    let rate_limiter = RateLimiter::new(spec.max_start_tokens, spec.start_tokens_per_second);
 
     Supervisor {
       spec,
@@ -291,7 +291,13 @@ impl Supervisor {
   }
 
   fn get_supervisor_script_env(action: &str) -> Vec<(String, String)> {
-    vec![(String::from("ORDERLY_ACTION"), String::from(action))]
+    vec![
+      (String::from("ORDERLY_ACTION"), String::from(action)),
+      (
+        String::from("ORDERLY_SUPERVISOR_PID"),
+        format!("{}", std::process::id()),
+      ),
+    ]
   }
 
   fn get_proc_script_env(&mut self, action: &str, idx: usize) -> Vec<(String, String)> {
@@ -524,7 +530,7 @@ impl Supervisor {
           Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.failure_timeout),
           None,
         ) {
-          log::warn!("error running restart lifecycle hook: {:?}.", e);
+          return e;
         }
       }
     }
@@ -593,8 +599,26 @@ impl Supervisor {
             }
           }
 
-          if let SupervisorError::Shutdown = e {
-            // Clean shutdown, take rc based on any errors during shutdown.
+          let is_clean_shutdown_request = |e: &SupervisorError| {
+            if let SupervisorError::Shutdown = e {
+              true
+            } else {
+              false
+            }
+          };
+
+          if is_clean_shutdown_request(&e) && rc == 0 {
+            if let Some(ref shutdown) = self.spec.shutdown {
+              if let Err(e) = self.run_command(
+                &shutdown.clone(),
+                &Supervisor::get_supervisor_script_env("SHUTDOWN"),
+                Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.failure_timeout),
+                None,
+              ) {
+                log::warn!("error running shutdown lifecycle hook: {:?}.", e);
+                rc = 1;
+              }
+            }
           } else {
             rc = 1;
 
@@ -639,6 +663,12 @@ fn die(s: &str) -> ! {
   std::process::exit(1);
 }
 
+fn assert_flag_set_once(set_flags: &mut std::collections::HashSet<String>, f: &str) {
+  if !set_flags.insert(String::from(f)) {
+    die(format!("{} is already set.", f).as_ref());
+  }
+}
+
 fn main() {
   simple_logger::init().unwrap();
 
@@ -647,6 +677,7 @@ fn main() {
 
   let mut supervisor_spec_builder = specs::SupervisorSpecBuilder::new();
   let mut proc_spec_builder = specs::ProcSpecBuilder::new();
+  let mut set_flags = std::collections::HashSet::<String>::new();
 
   for a in &args {
     if a == "--" {
@@ -664,6 +695,8 @@ fn main() {
 
   macro_rules! float_arg {
     () => {{
+      assert_flag_set_once(&mut set_flags, &args[arg_idx]);
+
       let arg = args
         .get(arg_idx + 1)
         .unwrap_or_else(|| die(format!("{} expects a number.", args[arg_idx]).as_ref()));
@@ -680,6 +713,8 @@ fn main() {
 
   macro_rules! string_arg {
     () => {{
+      assert_flag_set_once(&mut set_flags, &args[arg_idx]);
+
       let arg = args
         .get(arg_idx + 1)
         .unwrap_or_else(|| die(format!("{} expected an argument.", args[arg_idx]).as_ref()));
@@ -690,22 +725,22 @@ fn main() {
 
   while arg_idx < args.len() {
     match args[arg_idx].as_ref() {
-      "-restart-tokens-per-second" => {
-        supervisor_spec_builder.set_restart_tokens_per_second(float_arg!());
+      "-start-tokens-per-second" => {
+        supervisor_spec_builder.set_start_tokens_per_second(float_arg!());
       }
       "-check-delay" => {
         supervisor_spec_builder.set_check_delay_seconds(float_arg!());
       }
-      "-max-restart-tokens" => {
-        supervisor_spec_builder.set_max_restart_tokens(float_arg!());
+      "-max-start-tokens" => {
+        supervisor_spec_builder.set_max_start_tokens(float_arg!());
       }
       "-status-file" => {
         supervisor_spec_builder.set_status_file(string_arg!());
       }
-      "-start-complete" => {
+      "-on-start-complete" => {
         supervisor_spec_builder.set_start_complete(string_arg!());
       }
-      "-start-complete-timeout" => {
+      "-on-start-complete-timeout" => {
         supervisor_spec_builder.set_start_complete_timeout(float_arg!());
       }
       "-on-restart" => {
@@ -720,17 +755,30 @@ fn main() {
       "-on-failure-timeout" => {
         supervisor_spec_builder.set_failure_timeout(float_arg!());
       }
-      "-all-commands" => {
+      "-on-shutdown" => {
+        supervisor_spec_builder.set_shutdown(string_arg!());
+      }
+      "-on-shutdown-timeout" => {
+        supervisor_spec_builder.set_shutdown_timeout(float_arg!());
+      }
+      "-all-lifecycle-hooks" => {
         let all = args
           .get(arg_idx + 1)
-          .unwrap_or_else(|| die("-all-commands expected an argument."));
+          .unwrap_or_else(|| die("-all-lifecycle-hooks expected an argument."));
+
+        assert_flag_set_once(&mut set_flags, "-on-start-complete");
         supervisor_spec_builder.set_start_complete(all.clone());
+        assert_flag_set_once(&mut set_flags, "-on-restart");
         supervisor_spec_builder.set_restart(all.clone());
+        assert_flag_set_once(&mut set_flags, "-on-failure");
         supervisor_spec_builder.set_failure(all.clone());
+        assert_flag_set_once(&mut set_flags, "-on-shutdown");
+        supervisor_spec_builder.set_shutdown(all.clone());
         arg_idx += 2;
       }
       "--" => {
         arg_idx += 1;
+        set_flags.clear();
         break;
       }
       unknown => die(format!("unknown argument: {}.", unknown).as_ref()),
@@ -776,10 +824,15 @@ fn main() {
         let all = args
           .get(arg_idx + 1)
           .unwrap_or_else(|| die("-all-commands expected an argument."));
+        assert_flag_set_once(&mut set_flags, "-run");
         proc_spec_builder.set_run(all.clone());
+        assert_flag_set_once(&mut set_flags, "-check");
         proc_spec_builder.set_check(all.clone());
+        assert_flag_set_once(&mut set_flags, "-wait-started");
         proc_spec_builder.set_wait_started(all.clone());
+        assert_flag_set_once(&mut set_flags, "-shutdown");
         proc_spec_builder.set_shutdown(all.clone());
+        assert_flag_set_once(&mut set_flags, "-cleanup");
         proc_spec_builder.set_cleanup(all.clone());
         arg_idx += 2;
       }
@@ -793,6 +846,7 @@ fn main() {
             die(format!("proc spec missing field '{}'", f).as_ref())
           }
         }
+        set_flags.clear();
         arg_idx += 1;
       }
 

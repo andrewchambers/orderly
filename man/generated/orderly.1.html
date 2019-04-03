@@ -94,15 +94,16 @@ creation of fault tolerant process supervision trees.</p>
 
 <h2 id="SUPERVISOR-SPEC-FLAGS">SUPERVISOR SPEC FLAGS</h2>
 
-<h3 id="-max-restart-tokens-NUM-default-5-">-max-restart-tokens NUM (default=5)</h3>
+<h3 id="-max-start-tokens-NUM-default-5-">-max-start-tokens NUM (default=5)</h3>
 
-<p>The size of the restart pool, when this pool is empty and a restart is
-required <strong>orderly</strong> aborts. Each restart decreases the pool size by
-one.</p>
+<p>The size of the start pool, when this pool less than one and a (re)start is
+required <strong>orderly</strong> aborts. Each (re)start decreases the pool size by one.
+Note that the initial start is counted towards the quota,
+so the pool size must be at least 1 for a successful startup.</p>
 
-<h3 id="-restart-tokens-per-second-NUM-default-0-1-">-restart-tokens-per-second NUM (default=0.1)</h3>
+<h3 id="-start-tokens-per-second-NUM-default-0-1-">-start-tokens-per-second NUM (default=0.1)</h3>
 
-<p>The rate at which restarts are added into the restart pool.</p>
+<p>The rate at which restarts are added into the (re)start pool.</p>
 
 <h3 id="-status-file-PATH">-status-file PATH</h3>
 
@@ -113,29 +114,32 @@ is controlling have started successfully at least one time. The main use
 for this file is for creating nested <strong>orderly</strong> supervision trees that
 start in order.</p>
 
-<h3 id="-start-complete-BIN">-start-complete BIN</h3>
+<h3 id="-on-start-complete-BIN">-on-start-complete BIN</h3>
 
-<p>An optional command to run when the first startup completes successfully,
-this can be used to signal to parent orderly instances initialization can continue.</p>
+<p>An optional hook to run when the first startup completes successfully,</p>
 
 <h3 id="-on-restart-BIN">-on-restart BIN</h3>
 
-<p>An optional command to run before each restart that is triggered by a command failure.</p>
+<p>An optional hook to run before each restart that is triggered by a command failure.</p>
 
 <h3 id="-on-failure-BIN">-on-failure BIN</h3>
 
-<p>An optional command to run when orderly encounters an unrecoverable error, and
+<p>An optional hook to run when orderly encounters an unrecoverable error, and
 must abort operation.</p>
 
-<h3 id="-all-commands-BIN">-all-commands BIN</h3>
+<h3 id="-on-shutdown-BIN">-on-shutdown BIN</h3>
 
-<p>Shorthand for setting all commands to the same script, in this case env
+<p>An optional hook to run just before orderly exits after a clean shutdown.</p>
+
+<h3 id="-all-lifecycle-hooks-BIN">-all-lifecycle-hooks BIN</h3>
+
+<p>Shorthand for setting all lifecycle hooks to the same script, in this case env
 variables can disambiguate the action to
 take.</p>
 
-<h3 id="-start-complete-on-restart-on-failure-timeout-SECONDS-default-120-">-{start-complete,on-restart,on-failure}-timeout SECONDS (default=120)`</h3>
+<h3 id="-start-complete-on-restart-on-failure-on-shutdown-timeout-SECONDS-default-120-">-{start-complete,on-restart,on-failure,on-shutdown}-timeout SECONDS (default=120)`</h3>
 
-<p>The number of seconds to wait for a given command before giving up and
+<p>The number of seconds to wait for a given hook before giving up and
 triggering a restart. A negative value means no timeout.</p>
 
 <h3 id="-check-delay-PATH-default-5-">-check-delay PATH (default=5)</h3>
@@ -210,6 +214,10 @@ with a SIGKILL if it does not exit on it's own.</p>
 
 <p>One of START_COMPLETE, RESTART, FAILURE, RUN, WAIT_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which
 action <strong>orderly</strong> is requesting.</p>
+
+<h3 id="ORDERLY_SUPERVISOR_PID">ORDERLY_SUPERVISOR_PID</h3>
+
+<p>The pid of the orderly process.</p>
 
 <h3 id="ORDERLY_RUN_PID">ORDERLY_RUN_PID</h3>
 
@@ -332,7 +340,7 @@ input via named pipes or any other mechanism.</p>
 
   <ol class='man-decor man-foot man foot'>
     <li class='tl'></li>
-    <li class='tc'>March 2019</li>
+    <li class='tc'>April 2019</li>
     <li class='tr'>ORDERLY(1)</li>
   </ol>
 

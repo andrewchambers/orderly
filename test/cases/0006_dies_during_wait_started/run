@@ -8,7 +8,7 @@ set -eu
 
 start="$(date +%s)"
 
-if timeout 10s orderly -max-restart-tokens 1 -restart-tokens-per-second 0 -- \
+if timeout 10s orderly -max-start-tokens 1 -start-tokens-per-second 0 -- \
   -name sv -all-commands ./sv > test.out 2>&1 
 then
   echo "expected an error."

@@ -18,12 +18,14 @@ DESCRIPTION
        ant process supervision trees.
 
 SUPERVISOR SPEC FLAGS
-   -max-restart-tokens NUM (default=5)
-       The size of the restart pool, when this pool is empty and a restart  is  required  orderly
-       aborts. Each restart decreases the pool size by one.
+   -max-start-tokens NUM (default=5)
+       The size of the start pool, when this pool less than  one  and  a  (re)start  is  required
+       orderly aborts. Each (re)start decreases the pool size by one. Note that the initial start
+       is counted towards the quota, so the pool size  must  be  at  least  1  for  a  successful
+       startup.
 
-   -restart-tokens-per-second NUM (default=0.1)
-       The rate at which restarts are added into the restart pool.
+   -start-tokens-per-second NUM (default=0.1)
+       The rate at which restarts are added into the (re)start pool.
 
    -status-file PATH
        If specified, a file to be written containing the current status of orderly. The file will
@@ -31,55 +33,57 @@ SUPERVISOR SPEC FLAGS
        all  procesess it is controlling have started successfully at least one time. The main use
        for this file is for creating nested orderly supervision trees that start in order.
 
-   -start-complete BIN
-       An optional command to run when the first startup completes successfully, this can be used
-       to signal to parent orderly instances initialization can continue.
+   -on-start-complete BIN
+       An optional hook to run when the first startup completes successfully,
 
    -on-restart BIN
-       An optional command to run before each restart that is triggered by a command failure.
+       An optional hook to run before each restart that is triggered by a command failure.
 
    -on-failure BIN
-       An  optional command to run when orderly encounters an unrecoverable error, and must abort
+       An optional hook to run when orderly encounters an unrecoverable  error,  and  must  abort
        operation.
 
-   -all-commands BIN
-       Shorthand for setting all commands to the same script, in this case env variables can dis-
-       ambiguate the action to take.
+   -on-shutdown BIN
+       An optional hook to run just before orderly exits after a clean shutdown.
 
-   -{start-complete,on-restart,on-failure}-timeout SECONDS (default=120)`
-       The  number  of  seconds  to  wait  for  a given command before giving up and triggering a
-       restart. A negative value means no timeout.
+   -all-lifecycle-hooks BIN
+       Shorthand  for  setting all lifecycle hooks to the same script, in this case env variables
+       can disambiguate the action to take.
+
+   -{start-complete,on-restart,on-failure,on-shutdown}-timeout SECONDS (default=120)`
+       The number of seconds to wait for a given hook before giving up and triggering a  restart.
+       A negative value means no timeout.
 
    -check-delay PATH (default=5)
        The amount of time in seconds to wait between health check loops.
 
 PROCESS SPEC FLAGS
    -name NAME
-       The name of the service, passed to all callbacks under the env variable  as  'ORDERLY_SER-
+       The  name  of the service, passed to all callbacks under the env variable as 'ORDERLY_SER-
        VICE_NAME'.
 
    -run BIN
-       The  command  invoked by orderly to launch a supervised process. If this program exits, it
+       The command invoked by orderly to launch a supervised process. If this program  exits,  it
        will trigger a restart.
 
    -wait-started BIN
-       An optional command invoked concurrently with the service, it should exit with  a  0  exit
+       An  optional  command  invoked concurrently with the service, it should exit with a 0 exit
        code when this process is ready and the next process can be started.
 
    -check BIN
-       An  optional command invoked periodically as a health check. If this commands times out or
-       returns an unsuccessful exit code, a restart will be triggered. This check is in  addition
+       An optional command invoked periodically as a health check. If this commands times out  or
+       returns  an unsuccessful exit code, a restart will be triggered. This check is in addition
        to ensuring the run process has not exited.
 
    -shutdown BIN
-       An  optional  command  to  shutdown the supervised process. If not specified, orderly will
+       An optional command to shutdown the supervised process. If  not  specified,  orderly  will
        send SIGTERM to terminate the supervised process.
 
-       The shutdown command may be run if a command start times out, a sibling process  dies  and
+       The  shutdown  command may be run if a command start times out, a sibling process dies and
        the server needs to restart, or orderly is shutting down.
 
    -clean BIN
-       An  optional  command  to  cleanup  any resources the running process may have left. If it
+       An optional command to cleanup any resources the running process  may  have  left.  If  it
        exits with an unsuccessful exit code, a restart will be triggered. Process cleaning should
        be idempotent, and always happens in reverse order to process startup.
 
@@ -92,7 +96,7 @@ PROCESS SPEC FLAGS
        no timeout.
 
    -terminate-timeout SECONDS (default=10)`
-       The  amount  of  time to wait after a shutdown command before terminating the child with a
+       The amount of time to wait after a shutdown command before terminating the  child  with  a
        SIGKILL if it does not exit on it's own.
 
 PROCESS SPEC ENV VARIABLES
@@ -102,8 +106,11 @@ PROCESS SPEC ENV VARIABLES
        The name of the process being managed.
 
    ORDERLY_ACTION
-       One of START_COMPLETE, RESTART,  FAILURE,  RUN,  WAIT_STARTED,  CHECK,  SHUTDOWN,  CLEANUP
+       One  of  START_COMPLETE,  RESTART,  FAILURE,  RUN,  WAIT_STARTED, CHECK, SHUTDOWN, CLEANUP
        depending on which action orderly is requesting.
+
+   ORDERLY_SUPERVISOR_PID
+       The pid of the orderly process.
 
    ORDERLY_RUN_PID
        The pid of the supervised process, if it is running.
@@ -114,7 +121,7 @@ SIGNALS
        order.
 
 EXIT CODE
-       orderly exits with a zero exit code only if shutdown after a  SIGINT  or  SIGTERM  occured
+       orderly  exits  with  a  zero exit code only if shutdown after a SIGINT or SIGTERM occured
        with no errors.
 
 EXAMPLE
@@ -213,4 +220,4 @@ NOTES
 COPYRIGHT
        orderly is Copyright (C) 2019 Andrew Chambers https://acha.ninja/
 
-                                            March 2019                                 ORDERLY(1)
+                                            April 2019                                 ORDERLY(1)

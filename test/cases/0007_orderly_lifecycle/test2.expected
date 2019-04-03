@@ -2,11 +2,9 @@ sv CLEANUP
 sv RUN
 sv WAIT_STARTED
 lifecycle START_COMPLETE
-sv CHECK
 lifecycle RESTART
 sv CLEANUP
 sv RUN
 sv WAIT_STARTED
-sv CHECK
 sv CLEANUP
 lifecycle FAILURE

@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "ORDERLY" "1" "March 2019" "" ""
+.TH "ORDERLY" "1" "April 2019" "" ""
 .
 .SH "NAME"
 \fBORDERLY\fR \- run and supervise processes
@@ -27,29 +27,32 @@ Arrangement of \fBorderly\fR invocations in a tree hierarchy allows the creation
 .
 .SH "SUPERVISOR SPEC FLAGS"
 .
-.SS "\-max\-restart\-tokens NUM (default=5)"
-The size of the restart pool, when this pool is empty and a restart is required \fBorderly\fR aborts\. Each restart decreases the pool size by one\.
+.SS "\-max\-start\-tokens NUM (default=5)"
+The size of the start pool, when this pool less than one and a (re)start is required \fBorderly\fR aborts\. Each (re)start decreases the pool size by one\. Note that the initial start is counted towards the quota, so the pool size must be at least 1 for a successful startup\.
 .
-.SS "\-restart\-tokens\-per\-second NUM (default=0\.1)"
-The rate at which restarts are added into the restart pool\.
+.SS "\-start\-tokens\-per\-second NUM (default=0\.1)"
+The rate at which restarts are added into the (re)start pool\.
 .
 .SS "\-status\-file PATH"
 If specified, a file to be written containing the current status of \fBorderly\fR\. The file will contain either "STARTING", "RUNNING"\. \fBorderly\fR transitions from starting, to running after all procesess it is controlling have started successfully at least one time\. The main use for this file is for creating nested \fBorderly\fR supervision trees that start in order\.
 .
-.SS "\-start\-complete BIN"
-An optional command to run when the first startup completes successfully, this can be used to signal to parent orderly instances initialization can continue\.
+.SS "\-on\-start\-complete BIN"
+An optional hook to run when the first startup completes successfully,
 .
 .SS "\-on\-restart BIN"
-An optional command to run before each restart that is triggered by a command failure\.
+An optional hook to run before each restart that is triggered by a command failure\.
 .
 .SS "\-on\-failure BIN"
-An optional command to run when orderly encounters an unrecoverable error, and must abort operation\.
+An optional hook to run when orderly encounters an unrecoverable error, and must abort operation\.
 .
-.SS "\-all\-commands BIN"
-Shorthand for setting all commands to the same script, in this case env variables can disambiguate the action to take\.
+.SS "\-on\-shutdown BIN"
+An optional hook to run just before orderly exits after a clean shutdown\.
 .
-.SS "\-{start\-complete,on\-restart,on\-failure}\-timeout SECONDS (default=120)`"
-The number of seconds to wait for a given command before giving up and triggering a restart\. A negative value means no timeout\.
+.SS "\-all\-lifecycle\-hooks BIN"
+Shorthand for setting all lifecycle hooks to the same script, in this case env variables can disambiguate the action to take\.
+.
+.SS "\-{start\-complete,on\-restart,on\-failure,on\-shutdown}\-timeout SECONDS (default=120)`"
+The number of seconds to wait for a given hook before giving up and triggering a restart\. A negative value means no timeout\.
 .
 .SS "\-check\-delay PATH (default=5)"
 The amount of time in seconds to wait between health check loops\.
@@ -94,6 +97,9 @@ The name of the process being managed\.
 .
 .SS "ORDERLY_ACTION"
 One of START_COMPLETE, RESTART, FAILURE, RUN, WAIT_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which action \fBorderly\fR is requesting\.
+.
+.SS "ORDERLY_SUPERVISOR_PID"
+The pid of the orderly process\.
 .
 .SS "ORDERLY_RUN_PID"
 The pid of the supervised process, if it is running\.

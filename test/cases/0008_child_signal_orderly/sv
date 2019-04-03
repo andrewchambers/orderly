@@ -9,25 +9,20 @@ p () {
 case $ORDERLY_ACTION in
   RUN)
     p
-    if test "$CLEAN_SHUTDOWN" = "yes"
-    then
-      sleep 1
-      kill -SIGINT $ORDERLY_SUPERVISOR_PID
-      sleep 9999
-    else
-      sleep 2
-      exit 1
-    fi
+    sleep 1
+    echo "sv SIGNAL_PARENT"
+    kill -SIGTERM $ORDERLY_SUPERVISOR_PID
   ;;
   WAIT_STARTED)
-    sleep 0.2
+    sleep 0.1
     p
   ;;
   CHECK)
-    true # Not interested in check for this test.
+    true # not interested in check this test.
   ;;
   SHUTDOWN)
     kill -9 $ORDERLY_RUN_PID
+    p
   ;;
   CLEANUP)
     p

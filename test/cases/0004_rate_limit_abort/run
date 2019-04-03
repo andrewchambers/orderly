@@ -6,7 +6,7 @@ cd "$dir"
 
 set -eu
 
-if orderly -max-restart-tokens 5 -restart-tokens-per-second 0.2 -- \
+if orderly -max-start-tokens 5 -start-tokens-per-second 0.2 -- \
   -name sv -wait-started-timeout 1.1 -run ./sv -wait-started ./sv > test.out 
 then
   echo "expected failure."

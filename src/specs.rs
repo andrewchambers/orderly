@@ -133,13 +133,15 @@ pub struct ProcSpec {
 #[derive(Debug)]
 pub struct SupervisorSpecBuilder {
   status_file: Option<String>,
-  pub restart_tokens_per_second: f64,
-  pub max_restart_tokens: f64,
+  pub start_tokens_per_second: f64,
+  pub max_start_tokens: f64,
   pub check_delay_seconds: f64,
   pub start_complete: Option<String>,
   pub start_complete_timeout: Option<f64>,
   pub restart: Option<String>,
   pub restart_timeout: Option<f64>,
+  pub shutdown: Option<String>,
+  pub shutdown_timeout: Option<f64>,
   pub failure: Option<String>,
   pub failure_timeout: Option<f64>,
   procs: Vec<ProcSpec>,
@@ -148,13 +150,15 @@ pub struct SupervisorSpecBuilder {
 #[derive(Debug)]
 pub struct SupervisorSpec {
   pub status_file: Option<String>,
-  pub restart_tokens_per_second: f64,
+  pub start_tokens_per_second: f64,
   pub check_delay_seconds: f64,
-  pub max_restart_tokens: f64,
+  pub max_start_tokens: f64,
   pub start_complete: Option<String>,
   pub start_complete_timeout: Option<f64>,
   pub restart: Option<String>,
   pub restart_timeout: Option<f64>,
+  pub shutdown: Option<String>,
+  pub shutdown_timeout: Option<f64>,
   pub failure: Option<String>,
   pub failure_timeout: Option<f64>,
   pub procs: Vec<ProcSpec>,
@@ -163,8 +167,8 @@ pub struct SupervisorSpec {
 impl SupervisorSpecBuilder {
   pub fn new() -> Self {
     SupervisorSpecBuilder {
-      restart_tokens_per_second: 0.1,
-      max_restart_tokens: 5.0,
+      start_tokens_per_second: 0.1,
+      max_start_tokens: 5.0,
       check_delay_seconds: 5.0,
       start_complete: None,
       start_complete_timeout: Some(120.0),
@@ -172,17 +176,19 @@ impl SupervisorSpecBuilder {
       restart_timeout: Some(120.0),
       failure: None,
       failure_timeout: Some(120.0),
+      shutdown: None,
+      shutdown_timeout: Some(120.0),
       status_file: None,
       procs: vec![],
     }
   }
 
-  pub fn set_restart_tokens_per_second(&mut self, rps: f64) {
-    self.restart_tokens_per_second = rps;
+  pub fn set_start_tokens_per_second(&mut self, rps: f64) {
+    self.start_tokens_per_second = rps;
   }
 
-  pub fn set_max_restart_tokens(&mut self, max_restart_tokens: f64) {
-    self.max_restart_tokens = max_restart_tokens;
+  pub fn set_max_start_tokens(&mut self, max_start_tokens: f64) {
+    self.max_start_tokens = max_start_tokens;
   }
 
   pub fn set_check_delay_seconds(&mut self, check_delay_seconds: f64) {
@@ -199,6 +205,14 @@ impl SupervisorSpecBuilder {
 
   pub fn set_start_complete_timeout(&mut self, timeout_seconds: f64) {
     set_optional_timeout(&mut self.start_complete_timeout, timeout_seconds)
+  }
+
+  pub fn set_shutdown(&mut self, command: String) {
+    self.shutdown = Some(command);
+  }
+
+  pub fn set_shutdown_timeout(&mut self, timeout_seconds: f64) {
+    set_optional_timeout(&mut self.shutdown_timeout, timeout_seconds)
   }
 
   pub fn set_failure(&mut self, command: String) {
@@ -223,9 +237,9 @@ impl SupervisorSpecBuilder {
 
   pub fn build(self) -> Result<SupervisorSpec, SpecError> {
     let mut spec = SupervisorSpec {
-      restart_tokens_per_second: self.restart_tokens_per_second,
+      start_tokens_per_second: self.start_tokens_per_second,
       check_delay_seconds: self.check_delay_seconds,
-      max_restart_tokens: self.max_restart_tokens,
+      max_start_tokens: self.max_start_tokens,
       status_file: self.status_file,
       start_complete: self.start_complete,
       start_complete_timeout: self.start_complete_timeout,
@@ -233,6 +247,8 @@ impl SupervisorSpecBuilder {
       restart_timeout: self.restart_timeout,
       failure: self.failure,
       failure_timeout: self.failure_timeout,
+      shutdown: self.shutdown,
+      shutdown_timeout: self.shutdown_timeout,
       procs: vec![],
     };
 

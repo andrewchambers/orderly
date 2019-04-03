@@ -10,7 +10,7 @@ pushd web-server
 cargo build
 popd
 
-exec orderly -max-restart-tokens 2 -restart-tokens-per-second 0.1  \
+exec orderly -max-start-tokens 2 -start-tokens-per-second 0.1  \
   -- \
   -name redis-logs \
   -all-commands ./log-sv \

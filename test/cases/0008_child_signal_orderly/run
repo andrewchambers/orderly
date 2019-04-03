@@ -1,0 +1,12 @@
+#! /usr/bin/env bash
+
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd "$dir"
+
+set -eu
+
+timeout 30s orderly -max-restart-tokens 1 -restart-tokens-per-second 0 -- \
+  -name sv -all-commands ./sv > test.out
+
+diff -u <(grep -e "^sv" -e "^lifecycle" test.out) test.expected

@@ -19,15 +19,16 @@ creation of fault tolerant process supervision trees.
 
 ## SUPERVISOR SPEC FLAGS
 
-### \-max-restart-tokens NUM (default=5)
+### \-max-start-tokens NUM (default=5)
 
-The size of the restart pool, when this pool is empty and a restart is
-required **orderly** aborts. Each restart decreases the pool size by
-one.
+The size of the start pool, when this pool less than one and a (re)start is
+required **orderly** aborts. Each (re)start decreases the pool size by one. 
+Note that the initial start is counted towards the quota,
+so the pool size must be at least 1 for a successful startup.
 
-### \-restart-tokens-per-second NUM (default=0.1)
+### \-start-tokens-per-second NUM (default=0.1)
 
-The rate at which restarts are added into the restart pool.
+The rate at which restarts are added into the (re)start pool.
 
 ### \-status-file PATH
 
@@ -38,29 +39,32 @@ is controlling have started successfully at least one time. The main use
 for this file is for creating nested **orderly** supervision trees that
 start in order.
 
-### \-start-complete BIN
+### \-on-start-complete BIN
 
-An optional command to run when the first startup completes successfully,
-this can be used to signal to parent orderly instances initialization can continue.
+An optional hook to run when the first startup completes successfully,
 
 ### \-on-restart BIN
 
-An optional command to run before each restart that is triggered by a command failure.
+An optional hook to run before each restart that is triggered by a command failure.
 
 ### \-on-failure BIN
 
-An optional command to run when orderly encounters an unrecoverable error, and
+An optional hook to run when orderly encounters an unrecoverable error, and
 must abort operation.
 
-### \-all-commands BIN
+### \-on-shutdown BIN
 
-Shorthand for setting all commands to the same script, in this case env
+An optional hook to run just before orderly exits after a clean shutdown.
+
+### \-all-lifecycle-hooks BIN
+
+Shorthand for setting all lifecycle hooks to the same script, in this case env
 variables can disambiguate the action to
 take.
 
-### \-{start-complete,on-restart,on-failure}-timeout SECONDS (default=120)\`
+### \-{start-complete,on-restart,on-failure,on-shutdown}-timeout SECONDS (default=120)\`
 
-The number of seconds to wait for a given command before giving up and
+The number of seconds to wait for a given hook before giving up and
 triggering a restart. A negative value means no timeout.
 
 ### \-check-delay PATH (default=5)
@@ -135,6 +139,10 @@ The name of the process being managed.
 
 One of START_COMPLETE, RESTART, FAILURE, RUN, WAIT\_STARTED, CHECK, SHUTDOWN, CLEANUP depending on which
 action **orderly** is requesting.
+
+### ORDERLY\_SUPERVISOR\_PID
+
+The pid of the orderly process.
 
 ### ORDERLY\_RUN\_PID
 
