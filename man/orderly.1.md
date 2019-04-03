@@ -30,6 +30,14 @@ so the pool size must be at least 1 for a successful startup.
 
 The rate at which restarts are added into the (re)start pool.
 
+### \-start-tokens-per-minute NUM (default=6)
+
+An alias for the rate at which restarts are added into the (re)start pool.
+
+### \-start-tokens-per-hour NUM (default=360)
+
+An alias for the rate at which restarts are added into the (re)start pool.
+
 ### \-status-file PATH
 
 If specified, a file to be written containing the current status of
@@ -67,7 +75,7 @@ take.
 The number of seconds to wait for a given hook before giving up and
 triggering a restart. A negative value means no timeout.
 
-### \-check-delay PATH (default=5)
+### \-check-delay SECONDS (default=5)
 
 The amount of time in seconds to wait between health check loops.
 

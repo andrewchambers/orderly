@@ -728,6 +728,12 @@ fn main() {
       "-start-tokens-per-second" => {
         supervisor_spec_builder.set_start_tokens_per_second(float_arg!());
       }
+      "-start-tokens-per-minute" => {
+        supervisor_spec_builder.set_start_tokens_per_second(float_arg!() / 60.0);
+      }
+      "-start-tokens-per-hour" => {
+        supervisor_spec_builder.set_start_tokens_per_second(float_arg!() / 60.0 / 60.0);
+      }
       "-check-delay" => {
         supervisor_spec_builder.set_check_delay_seconds(float_arg!());
       }

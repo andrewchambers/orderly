@@ -33,6 +33,12 @@ The size of the start pool, when this pool less than one and a (re)start is requ
 .SS "\-start\-tokens\-per\-second NUM (default=0\.1)"
 The rate at which restarts are added into the (re)start pool\.
 .
+.SS "\-start\-tokens\-per\-minute NUM (default=6)"
+An alias for the rate at which restarts are added into the (re)start pool\.
+.
+.SS "\-start\-tokens\-per\-hour NUM (default=360)"
+An alias for the rate at which restarts are added into the (re)start pool\.
+.
 .SS "\-status\-file PATH"
 If specified, a file to be written containing the current status of \fBorderly\fR\. The file will contain either "STARTING", "RUNNING"\. \fBorderly\fR transitions from starting, to running after all procesess it is controlling have started successfully at least one time\. The main use for this file is for creating nested \fBorderly\fR supervision trees that start in order\.
 .
@@ -54,7 +60,7 @@ Shorthand for setting all lifecycle hooks to the same script, in this case env v
 .SS "\-{start\-complete,on\-restart,on\-failure,on\-shutdown}\-timeout SECONDS (default=120)`"
 The number of seconds to wait for a given hook before giving up and triggering a restart\. A negative value means no timeout\.
 .
-.SS "\-check\-delay PATH (default=5)"
+.SS "\-check\-delay SECONDS (default=5)"
 The amount of time in seconds to wait between health check loops\.
 .
 .SH "PROCESS SPEC FLAGS"
