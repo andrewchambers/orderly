@@ -1,6 +1,6 @@
 [package]
 name = "orderly"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Andrew Chambers <ac@acha.ninja>"]
 edition = "2018"
 description = "A program for ordered re(start),stop and cleanup of processes."
