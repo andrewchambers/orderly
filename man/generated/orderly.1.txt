@@ -56,7 +56,7 @@ SUPERVISOR SPEC FLAGS
        Shorthand  for  setting all lifecycle hooks to the same script, in this case env variables
        can disambiguate the action to take.
 
-   -{start-complete,on-restart,on-failure,on-shutdown}-timeout SECONDS (default=120)`
+   -{on-start-complete,on-restart,on-failure,on-shutdown}-timeout SECONDS (default=120)`
        The number of seconds to wait for a given hook before giving up and triggering a  restart.
        A negative value means no timeout.
 
