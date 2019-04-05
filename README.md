@@ -71,3 +71,7 @@ issue](https://github.com/andrewchambers/orderly/issues)
 ## Sponsors
 
 This project was sponsored by [backupbox.io](https://backupbox.io)
+
+## Authors
+
+[Andrew Chambers](https://acha.ninja)
