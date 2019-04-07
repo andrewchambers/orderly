@@ -1,0 +1,23 @@
+#! /usr/bin/env bash
+
+set -eu
+set -o pipefail
+
+case "$ORDERLY_ACTION" in
+  START_COMPLETE)
+    echo "application is fully initialized."
+  ;;
+  RESTART)
+    echo "application failed, about to restart."
+  ;;
+  FAILURE)
+    echo "application failed too many times, giving up."
+  ;;
+  SHUTDOWN)
+    echo "application has shutdown cleanly."
+  ;;
+  *)
+    echo "Unknown action: $ORDERLY_ACTION"
+    exit 1
+  ;;
+esac

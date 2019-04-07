@@ -524,6 +524,7 @@ impl Supervisor {
 
     if self.num_restarts > 0 {
       if let Some(ref restart) = self.spec.restart {
+        log::info!("running restart hook.");
         if let Err(e) = self.run_command(
           &restart.clone(),
           &Supervisor::get_supervisor_script_env("RESTART"),
@@ -548,6 +549,7 @@ impl Supervisor {
       }
 
       if let Some(ref start_complete) = self.spec.start_complete {
+        log::info!("running start complete hook.");
         if let Err(e) = self.run_command(
           &start_complete.clone(),
           &Supervisor::get_supervisor_script_env("START_COMPLETE"),
@@ -609,6 +611,7 @@ impl Supervisor {
 
           if is_clean_shutdown_request(&e) && rc == 0 {
             if let Some(ref shutdown) = self.spec.shutdown {
+              log::info!("running shutdown hook.");
               if let Err(e) = self.run_command(
                 &shutdown.clone(),
                 &Supervisor::get_supervisor_script_env("SHUTDOWN"),
@@ -623,6 +626,7 @@ impl Supervisor {
             rc = 1;
 
             if let Some(ref failure) = self.spec.failure {
+              log::info!("running failure hook.");
               if let Err(e) = self.run_command(
                 &failure.clone(),
                 &Supervisor::get_supervisor_script_env("FAILURE"),

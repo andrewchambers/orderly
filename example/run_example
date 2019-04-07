@@ -11,6 +11,7 @@ cargo build
 popd
 
 exec orderly -max-start-tokens 2 -start-tokens-per-second 0.1  \
+  -all-lifecycle-hooks ./lifecycle-hooks \
   -- \
   -name redis-logs \
   -all-commands ./log-sv \
