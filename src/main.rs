@@ -354,8 +354,8 @@ impl Supervisor {
       );
       let env = self.get_proc_script_env("SHUTDOWN", idx);
 
-      match self.spec.procs[idx].shutdown {
-        Some(ref shutdown) => match self.run_command(&shutdown.clone(), &env, deadline, None) {
+      match self.spec.procs[idx].shutdown.clone() {
+        Some(shutdown) => match self.run_command(&shutdown, &env, deadline, None) {
           Ok(()) => (),
           Err(err) => {
             log::warn!("shutdown script error: {:?}.", err);
@@ -416,10 +416,9 @@ impl Supervisor {
       Some(c) => match c.try_wait()? {
         None => {
           let s = &self.spec.procs[idx];
-          match s.check {
-            Some(ref check) => {
-              self.run_command_timeout_secs(&check.clone(), &env, s.check_timeout_seconds, None)
-            }
+          let check_timeout_seconds = s.check_timeout_seconds;
+          match s.check.clone() {
+            Some(check) => self.run_command_timeout_secs(&check, &env, check_timeout_seconds, None),
             None => Ok(()),
           }
         }
@@ -442,9 +441,10 @@ impl Supervisor {
 
     let env = self.get_proc_script_env("CLEANUP", idx);
     let s = &self.spec.procs[idx];
-    match s.cleanup {
-      Some(ref cleanup) => {
-        self.run_command_timeout_secs(&cleanup.clone(), &env, s.cleanup_timeout_seconds, None)
+    match s.cleanup.clone() {
+      Some(cleanup) => {
+        let cleanup_timeout_seconds = s.cleanup_timeout_seconds;
+        self.run_command_timeout_secs(&cleanup, &env, cleanup_timeout_seconds, None)
       }
       None => Ok(()),
     }
@@ -463,11 +463,12 @@ impl Supervisor {
     {
       let env = self.get_proc_script_env("WAIT_STARTED", idx);
       let s = &self.spec.procs[idx];
-      if let Some(ref wait_started) = s.wait_started {
+      if let Some(wait_started) = s.wait_started.clone() {
+        let wait_started_timeout_seconds = s.wait_started_timeout_seconds;
         self.run_command_timeout_secs(
-          &wait_started.clone(),
+          &wait_started,
           &env,
-          s.wait_started_timeout_seconds,
+          wait_started_timeout_seconds,
           Some(idx),
         )?
       }
@@ -523,10 +524,10 @@ impl Supervisor {
     }
 
     if self.num_restarts > 0 {
-      if let Some(ref restart) = self.spec.restart {
+      if let Some(restart) = self.spec.restart.clone() {
         log::info!("running restart hook.");
         if let Err(e) = self.run_command(
-          &restart.clone(),
+          &restart,
           &Supervisor::get_supervisor_script_env("RESTART"),
           Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.failure_timeout),
           None,
@@ -548,10 +549,10 @@ impl Supervisor {
         return e;
       }
 
-      if let Some(ref start_complete) = self.spec.start_complete {
+      if let Some(start_complete) = self.spec.start_complete.clone() {
         log::info!("running start complete hook.");
         if let Err(e) = self.run_command(
-          &start_complete.clone(),
+          &start_complete,
           &Supervisor::get_supervisor_script_env("START_COMPLETE"),
           Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.start_complete_timeout),
           None,
@@ -610,10 +611,10 @@ impl Supervisor {
           };
 
           if is_clean_shutdown_request(&e) && rc == 0 {
-            if let Some(ref shutdown) = self.spec.shutdown {
+            if let Some(ref shutdown) = self.spec.shutdown.clone() {
               log::info!("running shutdown hook.");
               if let Err(e) = self.run_command(
-                &shutdown.clone(),
+                &shutdown,
                 &Supervisor::get_supervisor_script_env("SHUTDOWN"),
                 Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.failure_timeout),
                 None,
@@ -625,10 +626,10 @@ impl Supervisor {
           } else {
             rc = 1;
 
-            if let Some(ref failure) = self.spec.failure {
+            if let Some(ref failure) = self.spec.failure.clone() {
               log::info!("running failure hook.");
               if let Err(e) = self.run_command(
-                &failure.clone(),
+                &failure,
                 &Supervisor::get_supervisor_script_env("FAILURE"),
                 Supervisor::deadline_from_float_seconds(Instant::now(), self.spec.failure_timeout),
                 None,
