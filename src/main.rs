@@ -420,16 +420,28 @@ impl Supervisor {
           let s = &self.spec.procs[idx];
           let check_timeout_seconds = s.check_timeout_seconds;
           match s.check.clone() {
-            Some(check) => self.run_command_timeout_secs(&check, &env, check_timeout_seconds, None),
+            Some(check) => {
+              match self.run_command_timeout_secs(&check, &env, check_timeout_seconds, None) {
+                Ok(()) => Ok(()),
+                Err(e) => {
+                  log::warn!("health check for {} failed.", self.spec.procs[idx].name,);
+                  Err(e)
+                }
+              }
+            }
             None => Ok(()),
           }
         }
         Some(_) => {
           *p = None;
+          log::warn!("{} exited.", self.spec.procs[idx].name);
           Err(SupervisorError::ProcFailed)
         }
       },
-      None => Err(SupervisorError::ProcFailed),
+      None => {
+        log::warn!("{} missing.", self.spec.procs[idx].name);
+        Err(SupervisorError::ProcFailed)
+      }
     }
   }
 
