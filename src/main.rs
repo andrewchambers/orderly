@@ -734,6 +734,7 @@ fn main() {
     match args[arg_idx].as_ref() {
       "-quiet-health-checks" => {
         supervisor_spec_builder.set_quiet_health_checks(true);
+        arg_idx += 1;
       }
       "-start-tokens-per-second" => {
         supervisor_spec_builder.set_start_tokens_per_second(float_arg!());
