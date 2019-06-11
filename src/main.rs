@@ -239,7 +239,7 @@ impl Supervisor {
   ) -> Result<(), SupervisorError> {
     let mut c = Supervisor::spawn_child(command, env)?;
 
-    let max_delay: u64 = 500;
+    let max_delay: u64 = 250;
     let mut delay: u64 = 10;
 
     loop {
@@ -407,7 +407,9 @@ impl Supervisor {
   fn check_proc(&mut self, idx: usize) -> Result<(), SupervisorError> {
     self.check_signals()?;
 
-    log::info!("checking {}.", self.spec.procs[idx].name);
+    if !self.spec.quiet_health_checks {
+      log::info!("checking {}.", self.spec.procs[idx].name);
+    }
 
     let env = self.get_proc_script_env("CHECK", idx);
     let p = &mut self.procs[idx];
@@ -730,6 +732,9 @@ fn main() {
 
   while arg_idx < args.len() {
     match args[arg_idx].as_ref() {
+      "-quiet-health-checks" => {
+        supervisor_spec_builder.set_quiet_health_checks(true);
+      }
       "-start-tokens-per-second" => {
         supervisor_spec_builder.set_start_tokens_per_second(float_arg!());
       }

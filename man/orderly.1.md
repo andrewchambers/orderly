@@ -79,6 +79,10 @@ triggering a restart. A negative value means no timeout.
 
 The amount of time in seconds to wait between health check loops.
 
+### \-quiet-health-checks
+
+If set, health checks that pass do not cause any logging output.
+
 ## PROCESS SPEC FLAGS
 
 ### \-name NAME

@@ -80,11 +80,12 @@ This project was sponsored by [backupbox.io](https://backupbox.io)
 ## Sponsoring
 
 This project took time and effort to make, please sponsor the project
-via this [paypal donation link](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=5VEH9S9PN7RQU&source=url).
+via this [paypal donation
+link](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=5VEH9S9PN7RQU&source=url).
 
-Add a markdown message shorter than 70 characters total to your donation it will be added
-to the sponsor section. Note that sponsor messages may be rejected at the project
-authors judgement.
+Add a markdown message shorter than 70 characters total to your donation
+it will be added to the sponsor section. Note that sponsor messages may
+be rejected at the project authors judgement.
 
 ## Authors
 

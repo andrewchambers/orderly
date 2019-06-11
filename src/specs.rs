@@ -133,6 +133,7 @@ pub struct ProcSpec {
 #[derive(Debug)]
 pub struct SupervisorSpecBuilder {
   status_file: Option<String>,
+  pub quiet_health_checks: bool,
   pub start_tokens_per_second: f64,
   pub max_start_tokens: f64,
   pub check_delay_seconds: f64,
@@ -150,6 +151,7 @@ pub struct SupervisorSpecBuilder {
 #[derive(Debug)]
 pub struct SupervisorSpec {
   pub status_file: Option<String>,
+  pub quiet_health_checks: bool,
   pub start_tokens_per_second: f64,
   pub check_delay_seconds: f64,
   pub max_start_tokens: f64,
@@ -167,6 +169,7 @@ pub struct SupervisorSpec {
 impl SupervisorSpecBuilder {
   pub fn new() -> Self {
     SupervisorSpecBuilder {
+      quiet_health_checks: false,
       start_tokens_per_second: 0.1,
       max_start_tokens: 5.0,
       check_delay_seconds: 5.0,
@@ -181,6 +184,10 @@ impl SupervisorSpecBuilder {
       status_file: None,
       procs: vec![],
     }
+  }
+
+  pub fn set_quiet_health_checks(&mut self, v: bool) {
+    self.quiet_health_checks = v;
   }
 
   pub fn set_start_tokens_per_second(&mut self, rps: f64) {
@@ -237,6 +244,7 @@ impl SupervisorSpecBuilder {
 
   pub fn build(self) -> Result<SupervisorSpec, SpecError> {
     let mut spec = SupervisorSpec {
+      quiet_health_checks: self.quiet_health_checks,
       start_tokens_per_second: self.start_tokens_per_second,
       check_delay_seconds: self.check_delay_seconds,
       max_start_tokens: self.max_start_tokens,

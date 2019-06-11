@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "ORDERLY" "1" "April 2019" "" ""
+.TH "ORDERLY" "1" "June 2019" "" ""
 .
 .SH "NAME"
 \fBORDERLY\fR \- run and supervise processes
@@ -62,6 +62,9 @@ The number of seconds to wait for a given hook before giving up and triggering a
 .
 .SS "\-check\-delay SECONDS (default=5)"
 The amount of time in seconds to wait between health check loops\.
+.
+.SS "\-quiet\-health\-checks"
+If set, health checks that pass do not cause any logging output\.
 .
 .SH "PROCESS SPEC FLAGS"
 .
