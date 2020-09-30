@@ -199,12 +199,15 @@ impl Supervisor {
     for v in env {
       cmd.env(&v.0, &v.1);
     }
-    cmd.before_exec(|| {
-      match nix::unistd::setpgid(nix::unistd::Pid::from_raw(0), nix::unistd::Pid::from_raw(0)) {
-        Ok(_pid) => Ok(()),
-        Err(_err) => Err(std::io::Error::from(std::io::ErrorKind::Other)),
-      }
-    });
+    unsafe {
+      cmd.pre_exec(|| {
+        match nix::unistd::setpgid(nix::unistd::Pid::from_raw(0), nix::unistd::Pid::from_raw(0)) {
+          Ok(_pid) => (),
+          Err(_err) => return Err(std::io::Error::from(std::io::ErrorKind::Other)),
+        }
+        Ok(())
+      })
+    };
     Ok(cmd.spawn()?)
   }
 
@@ -596,13 +599,14 @@ impl Supervisor {
 
     loop {
       match self.supervise() {
-        e @ SupervisorError::IOError(_) | e @ SupervisorError::ProcFailed => {
-          log::warn!("supervisor encountered an error: {:?}.", e,);
+        e @ SupervisorError::ProcFailed => {
+          log::warn!("supervisor encountered an error: {:?}.", e);
         }
-        e @ SupervisorError::Shutdown
+        e @ SupervisorError::IOError(_)
+        | e @ SupervisorError::Shutdown
         | e @ SupervisorError::RestartLimitReached
         | e @ SupervisorError::UnkillableChild => {
-          log::info!("supervisor shutting down: {:?}.", e);
+          log::info!("supervisor shutting down (unrecoverable error): {:?}.", e);
 
           match self.shutdown_all_procs() {
             Ok(()) => (),
@@ -689,7 +693,7 @@ fn assert_flag_set_once(set_flags: &mut std::collections::HashSet<String>, f: &s
 }
 
 fn main() {
-  simple_logger::init().unwrap();
+  simple_logger::SimpleLogger::new().init().unwrap();
 
   let args: Vec<String> = std::env::args().collect();
   let mut arg_idx = 1;

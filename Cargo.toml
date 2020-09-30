@@ -8,8 +8,8 @@ license = "MIT"
 
 [dependencies]
 libc = "0.2"
-nix = "0.13"
-crossbeam-channel = "0.3"
+nix = "0.18"
+crossbeam-channel = "0.4"
 signal-hook = { version = "0.1", default-features = false }
 log = "0.4"
-simple_logger = "1.0.1"
+simple_logger = "1"
