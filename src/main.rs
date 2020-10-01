@@ -205,6 +205,16 @@ impl Supervisor {
           Ok(_pid) => (),
           Err(_err) => return Err(std::io::Error::from(std::io::ErrorKind::Other)),
         }
+
+        cfg_if::cfg_if! {
+          // Help ensure if orderly itself gets killed, the child will be killed
+            if #[cfg(target_os = "linux")]  {
+              if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM) != 0 {
+                return Err(std::io::Error::last_os_error());
+              }
+            }
+        }
+
         Ok(())
       })
     };
